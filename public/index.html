@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1150" />
+    <title>Solana Wallet Balances</title>
+    <meta
+      name="description"
+      content="Fetch Solana wallet token balances with on-chain RPC amounts, Vybe metadata, and USD prices via Jupiter and pump.fun."
+    />
+    <meta name="theme-color" content="#0f0f12" />
+    <link rel="canonical" href="https://solana-wallet-balances-api.vybenetwork.com/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="app.css?v=6" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="page-masthead" aria-label="About and resources">
+        <div class="page-masthead__head">
+          <div class="page-masthead__title-block">
+            <div class="page-masthead__eyebrow">
+              <span class="page-masthead__logo">Vybe</span>
+              <span class="page-masthead__pill">Wallet API</span>
+            </div>
+            <h1 class="page-masthead__title">
+              Solana <span class="page-masthead__title-accent">Wallet Balances</span>
+            </h1>
+            <p class="page-masthead__description">
+              On-chain SPL + Token-2022 amounts merged with Vybe wallet data. USD marks from Jupiter swap quotes,
+              pump.fun fallback, and Vybe token-details — same resolver stack as the swap demo.
+            </p>
+          </div>
+          <div class="page-masthead__visual" aria-hidden="true">
+            <img
+              src="https://solana-wallet-pnl-profit-and-loss-api.vybenetwork.com/solana-wallet-pnl-profit-and-loss-api-data.png"
+              alt=""
+              width="450"
+              height="434"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
+        <nav class="page-masthead__nav" aria-label="Documentation and community links">
+          <div class="page-masthead__nav-row page-masthead__nav-row--primary">
+            <div class="page-masthead__nav-cluster">
+              <div class="page-masthead__group">
+                <span class="page-masthead__label">Guides</span>
+                <div class="page-masthead__btns">
+                  <a
+                    class="page-masthead__btn page-masthead__btn--docs"
+                    href="https://docs.vybenetwork.com/docs/fetch-wallet-balances"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <span class="page-masthead__btn-icon page-masthead__btn-icon--docs" aria-hidden="true"></span>
+                    <span class="page-masthead__btn-text"
+                      ><span class="page-masthead__btn-prefix">Docs:</span> Wallet Balances Guide</span
+                    >
+                  </a>
+                </div>
+              </div>
+              <div class="page-masthead__group page-masthead__group--endpoint">
+                <span class="page-masthead__label">Main Endpoint Used</span>
+                <div class="page-masthead__btns">
+                  <a
+                    class="page-masthead__btn page-masthead__btn--api"
+                    href="https://docs.vybenetwork.com/reference/get_wallet_token_balance_v4"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <span class="page-masthead__btn-icon page-masthead__btn-icon--endpoint" aria-hidden="true"></span>
+                    <span class="page-masthead__btn-text"
+                      ><span class="page-masthead__btn-prefix">Docs:</span> Wallet Token Balance API</span
+                    >
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="page-masthead__group page-masthead__group--community">
+              <span class="page-masthead__label">Community</span>
+              <div class="page-masthead__btns">
+                <a
+                  class="page-masthead__btn page-masthead__btn--social"
+                  href="https://t.me/VybeNetwork_Official"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="page-masthead__btn-icon page-masthead__btn-icon--telegram" aria-hidden="true"></span>
+                  Telegram Support
+                </a>
+                <a
+                  class="page-masthead__btn page-masthead__btn--social"
+                  href="https://x.com/Vybe_Network"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span class="page-masthead__btn-icon page-masthead__btn-icon--x" aria-hidden="true"></span>
+                  Follow Us on X
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="page-masthead__nav-row page-masthead__nav-row--related">
+            <div class="page-masthead__group page-masthead__group--related">
+              <span class="page-masthead__label">Other Related API Demos</span>
+              <div class="page-masthead__btns page-masthead__btns--related">
+                <a
+                  class="page-masthead__btn page-masthead__btn--demo page-masthead__btn--demo-holders"
+                  href="https://solana-top-token-holders-and-whales-api.vybenetwork.com/"
+                >
+                  <span class="page-masthead__demo-preview" aria-hidden="true">
+                    <img
+                      src="https://solana-top-token-holders-and-whales-api.vybenetwork.com/solana-top-token-holders-and-whales-api.png"
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </span>
+                  <span class="page-masthead__btn-text">Top Token Holders</span>
+                </a>
+                <a
+                  class="page-masthead__btn page-masthead__btn--demo page-masthead__btn--demo-wallet"
+                  href="https://solana-wallet-pnl-profit-and-loss-api.vybenetwork.com/"
+                >
+                  <span class="page-masthead__demo-preview" aria-hidden="true">
+                    <img
+                      src="https://solana-wallet-pnl-profit-and-loss-api.vybenetwork.com/solana-wallet-pnl-profit-and-loss-api-app.jpg"
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </span>
+                  <span class="page-masthead__btn-text">Wallet Profit &amp; Loss</span>
+                </a>
+                <a class="page-masthead__btn page-masthead__btn--demo page-masthead__btn--demo-swap" href="https://solana-swap-api.vybenetwork.com/">
+                  <span class="page-masthead__demo-preview" aria-hidden="true">
+                    <img src="https://solana-swap-api.vybenetwork.com/solana-swap-api-app.jpg" alt="" loading="lazy" decoding="async" />
+                  </span>
+                  <span class="page-masthead__btn-text">Swap &amp; Router</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      <section class="section-card section-card--inputs inputs panel">
+        <div class="section-heading">
+          <div class="section-header">
+            <span class="section-header__marker" aria-hidden="true"></span>
+            <h2 class="section-header__title">Remote Filters</h2>
+          </div>
+          <div class="section-lede meta remote-filters-help">
+            <strong>Remote filters</strong> fetch wallet holdings from Vybe + on-chain RPC and enrich prices via Jupiter → pump.fun → Vybe.
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="wallet">
+            <span class="label-icon field-icon icon-tag" aria-hidden="true"></span>
+            Wallet address
+          </label>
+          <div class="field-control">
+            <span class="field-icon icon-tag" aria-hidden="true"></span>
+            <input
+              type="text"
+              id="wallet"
+              value="7Tar8QZTrRPwoGY5Ke9Vfwf6CmpBfekrNofERxgReza"
+              placeholder="Solana wallet address"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+
+        <div class="holders-fetch-row">
+          <div class="field">
+            <label for="limit">
+              <span class="label-icon field-icon icon-hash" aria-hidden="true"></span>
+              Limit
+            </label>
+            <div class="field-control">
+              <span class="field-icon icon-hash" aria-hidden="true"></span>
+              <select id="limit">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="fetchAll" class="vybe-action-btn vybe-action-btn--fetch fetch-btn-attention">
+              <span class="vybe-action-btn__icon vybe-action-btn__icon--fetch" aria-hidden="true"></span>
+              <span class="vybe-action-btn__text">Load Wallet Balances</span>
+            </button>
+            <div class="loading" id="loadingIndicator" hidden aria-hidden="true">
+              <span class="loading-spinner"></span>
+              <span class="loading-text">Loading…</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-card section-card--token token-section panel" id="walletSummarySection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <span class="section-header__marker" aria-hidden="true"></span>
+            <h2 class="section-header__title">Wallet Summary</h2>
+          </div>
+        </div>
+        <div class="token-section-content" id="walletSummaryContent">
+          <div class="token-section-intro">
+            <div class="token-header">
+              <div>
+                <span id="walletSummaryLabel" class="symbol">—</span>
+                <span id="walletSummarySub" class="name">Enter a wallet and load balances</span>
+              </div>
+            </div>
+            <aside class="token-last-updated" aria-label="Wallet data last updated">
+              <span class="token-last-updated-label">Last updated</span>
+              <span class="token-last-updated-value" id="walletLastUpdatedValue">—</span>
+            </aside>
+          </div>
+          <div class="token-stats-groups" id="walletSummaryStats"></div>
+        </div>
+      </section>
+
+      <section class="section-card section-card--chart panel token-supply-panel" id="chartsPanel" hidden>
+        <div class="section-header token-supply-period-header">
+          <div class="section-header-left">
+            <span class="section-header__marker" aria-hidden="true"></span>
+            <h2 class="section-header__title token-supply-period-title">Portfolio Charts</h2>
+          </div>
+        </div>
+        <div class="token-supply-grid token-supply-grid--trade-count-pie-row token-supply-grid--section-gap">
+          <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash token-supply-card--holders-dashboard-merged">
+            <section class="holders-dash-section holders-dash-section--volume-pie">
+              <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash holders-dash-nested-supply-pie">
+                <header class="token-trade-tier-dash__top">
+                  <div class="token-trade-tier-dash__titles">
+                    <h2 class="token-stats-group-title" id="portfolioPieTitle">Portfolio Allocation (USD)</h2>
+                    <p class="token-trade-tier-dash__lede wallet-pnl-pnl-trading-lede" id="portfolioPieLede">—</p>
+                  </div>
+                  <aside class="token-trade-tier-dash__insight" aria-label="Portfolio insight">
+                    <span class="token-trade-tier-dash__insight-bulb" aria-hidden="true">💡</span>
+                    <p class="token-trade-tier-dash__insight-text wallet-pnl-pnl-trading-lede" id="portfolioPieInsight">—</p>
+                  </aside>
+                </header>
+                <div class="token-trade-tier-dash__main">
+                  <div class="token-trade-tier-dash__chart-col">
+                    <h3 class="token-stats-group-title token-trade-tier-dash__chart-title">Share Of Portfolio Value</h3>
+                    <div class="token-supply-wrap token-supply-wrap--trade-tier-pie">
+                      <div class="token-supply-pie token-supply-pie--donut-labels" id="portfolioPie" aria-label="Portfolio pie chart"></div>
+                    </div>
+                  </div>
+                  <div class="token-trade-tier-dash__legend-col">
+                    <div class="token-supply-legend token-supply-legend--compact-grid token-supply-legend--tier-dashboard" id="portfolioLegend"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="holders-dash-section">
+              <div class="holders-dash-cohort-stack-block">
+                <h3 class="token-stats-group-title token-trade-tier-dash__chart-title">Holdings By USD Value Band</h3>
+                <p class="token-trade-tier-dash__chart-note wallet-pnl-pnl-trading-lede">
+                  Count of tokens in each estimated USD position size (priced rows only).
+                </p>
+                <div class="holders-hbar-list wallet-usd-hbar-list" id="holdingsUsdBars" aria-label="Holdings by USD band"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-card section-card--holders holders-section panel" id="holdersSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <span class="section-header__marker" aria-hidden="true"></span>
+            <h2 class="section-header__title">Token Holdings</h2>
+            <div class="section-loading" id="holdersLoading" hidden aria-hidden="true">
+              <span class="loading-spinner"></span>
+              <span class="loading-text">Loading…</span>
+            </div>
+          </div>
+          <span class="section-error" id="holdersError" hidden aria-hidden="true"></span>
+        </div>
+        <div class="holders-content" id="holdersContentWrap">
+          <div class="section-lede meta" id="holdersMeta"></div>
+          <div class="token-stats-group holders-table-card">
+            <h3 class="token-stats-group-title"><span>Wallet tokens</span></h3>
+            <div class="table-wrap">
+              <table id="holdersTable">
+                <thead>
+                  <tr>
+                    <th style="text-align: left">#</th>
+                    <th style="text-align: left">Token</th>
+                    <th style="text-align: left">Amount</th>
+                    <th style="text-align: right">Value (USD)</th>
+                    <th style="text-align: right">% portfolio</th>
+                    <th style="text-align: left">Price source</th>
+                    <th style="text-align: left">Mint</th>
+                  </tr>
+                </thead>
+                <tbody id="holdersBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="error panel" id="errorSection" hidden>
+        <h2>Error</h2>
+        <pre id="errorText"></pre>
+      </section>
+    </div>
+    <script src="charts-pie.js?v=1"></script>
+    <script src="app.js?v=8"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+data/token-meta-cache.json
+data/token-icons/
+
+# Keep locally only (removed from repo) — same as solana-quote-swap-api
+deploy/
+scripts/
+DEPLOY.md
