@@ -61,9 +61,8 @@ function formatPctSmart(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || num === 0) return '0%';
   const abs = Math.abs(num);
-  if (abs >= 0.01) return `${num.toFixed(2)}%`;
-  const decimals = Math.max(3, Math.min(8, Math.ceil(-Math.log10(abs))));
-  return `${num.toFixed(decimals)}%`;
+  if (abs < 1) return '1%';
+  return `${num.toFixed(2)}%`;
 }
 
 function formatUsd(n) {
@@ -122,11 +121,11 @@ function formatCompactNum(n) {
   return num.toPrecision(4);
 }
 
-function formatPriceUsdSpot(n) {
+function formatTablePriceUsd(n) {
   const num = toNum(n);
   if (!Number.isFinite(num) || num <= 0) return '—';
-  if (num >= 1) return `$${num.toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
-  return `$${num.toPrecision(4)}`;
+  const trimmed = num.toFixed(2).replace(/\.?0+$/, '');
+  return `$${trimmed}`;
 }
 
 function formatPctChangeWithArrow(pct) {
@@ -134,37 +133,94 @@ function formatPctChangeWithArrow(pct) {
   if (!Number.isFinite(num)) return '—';
   const arrow = num >= 0 ? '↑' : '↓';
   const abs = Math.abs(num);
-  if (abs < 0.99) return `${arrow}${abs.toFixed(2)}%`;
+  if (abs === 0) return `${arrow}0%`;
+  if (abs < 1) return `${arrow}1%`;
   return `${arrow}${Math.trunc(abs)}%`;
 }
 
+function hasValidPriceChangePct(pct) {
+  return pct != null && Number.isFinite(Number(pct));
+}
+
 function formatPriceChangeChipHtml(label, pct) {
-  if (pct == null || !Number.isFinite(Number(pct))) return '';
+  if (!hasValidPriceChangePct(pct)) return '';
   const num = Number(pct);
   const cls = num > 0 ? 'swap-pair-chg--up' : num < 0 ? 'swap-pair-chg--down' : 'swap-pair-chg--muted';
   return `<span class="swap-pair-chg ${cls}">${escapeHtmlText(label)} ${formatPctChangeWithArrow(num)}</span>`;
 }
 
-function formatPriceColumnHtml(t) {
-  const spot = formatPriceUsdSpot(t.priceUsd);
-  if (spot === '—') return '—';
-  const chips = [
-    formatPriceChangeChipHtml('1d:', t.priceChange1dPct),
-    formatPriceChangeChipHtml('7d:', t.priceChange7dPct),
-  ].filter(Boolean);
-  const changesHtml = chips.length
-    ? `<div class="holders-price-changes">${chips.join('')}</div>`
-    : '<span class="swap-pair-chg swap-pair-chg--muted">—</span>';
-  return `<div class="holders-price-cell"><div class="holders-price-spot">${escapeHtmlText(spot)}</div>${changesHtml}</div>`;
+function formatMissingChangeChipHtml(label) {
+  return `<span class="swap-pair-chg swap-pair-chg--missing">${escapeHtmlText(label)} -%</span>`;
 }
 
-function formatCategoryColumnHtml(category, subcategory) {
+function formatChangeColumnHtml(t) {
+  const has1d = hasValidPriceChangePct(t.priceChange1dPct);
+  const has7d = hasValidPriceChangePct(t.priceChange7dPct);
+
+  if (!has1d && !has7d) {
+    return `<div class="holders-price-changes"><span class="swap-pair-chg swap-pair-chg--dead">Dead Token</span></div>`;
+  }
+
+  const chips = [
+    has1d ? formatPriceChangeChipHtml('1d:', t.priceChange1dPct) : formatMissingChangeChipHtml('1d:'),
+    has7d ? formatPriceChangeChipHtml('7d:', t.priceChange7dPct) : formatMissingChangeChipHtml('7d:'),
+  ];
+
+  return `<div class="holders-price-changes">${chips.join('')}</div>`;
+}
+
+function formatPriceColumnHtml(t) {
+  const spot = formatTablePriceUsd(t.priceUsd);
+  if (spot === '—') return '—';
+  return `<span class="holders-table-price">${escapeHtmlText(spot)}</span>`;
+}
+
+function formatMarketCapSupplyColumnHtml(t) {
+  const mcap = t.marketCap != null ? formatUsdCompact(t.marketCap) : '—';
+  return `<span class="holders-value-usd">${escapeHtmlText(mcap)}</span>`;
+}
+
+function formatUsdVolColumnHtml(t) {
+  const usd = t.usdValueVolume24h != null ? formatUsdCompact(t.usdValueVolume24h) : '—';
+  return `<span class="holders-value-usd">${escapeHtmlText(usd)}</span>`;
+}
+
+function formatCategoryTooltip(category, subcategory) {
   const cat = (category || '').trim();
   const sub = (subcategory || '').trim();
-  if (!cat && !sub) return '—';
-  if (!cat) return escapeHtmlText(sub);
-  if (!sub) return escapeHtmlText(cat);
-  return `<div class="holders-category-cell"><div>${escapeHtmlText(cat)}</div><div class="holders-category-sub meta">(${escapeHtmlText(sub)})</div></div>`;
+  if (!cat && !sub) return '';
+  if (cat && sub) return `${cat} (${sub})`;
+  return cat || sub;
+}
+
+function tokenBadgeHtml(className, tipText, svgMarkup) {
+  const tip = escapeHtmlText(tipText);
+  return `<span class="token-badge ${className} token-badge--has-tip" tabindex="0" aria-label="${escapeHtmlAttr(tipText)}"><svg class="token-badge__svg" viewBox="0 0 16 16" aria-hidden="true">${svgMarkup}</svg><span class="token-badge-tip" role="tooltip">${tip}</span></span>`;
+}
+
+function tokenSymbolBadgesHtml(t) {
+  const parts = [];
+  if (t.verified) {
+    parts.push(
+      tokenBadgeHtml(
+        'token-badge--verified',
+        'Verified',
+        '<rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="#2563eb" stroke="#60a5fa" stroke-width="1"/><path d="M4.5 8.2 6.8 10.5 11.5 5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+      ),
+    );
+  }
+  const catTip = formatCategoryTooltip(t.category, t.subcategory);
+  if (catTip) {
+    parts.push(
+      tokenBadgeHtml(
+        'token-badge--info',
+        catTip,
+        '<circle cx="8" cy="8" r="6.5" fill="none" stroke="#71717a" stroke-width="1.2"/><path d="M8 7.2V11" stroke="#a1a1aa" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r="0.75" fill="#a1a1aa"/>',
+      ),
+    );
+  }
+  if (parts.length === 0) return '';
+  return `<span class="token-symbol-badges">${parts.join('')}</span>`;
 }
 
 function aggregateWalletTaxonomy(tokens) {
@@ -712,17 +768,14 @@ function renderTable(tokens, totalUsd) {
       const src = t.priceSource || (v > 0 ? 'Vybe list' : '—');
       return `<tr>
         <td>${i + 1}</td>
-        <td><div class="token-header">${iconHtml}<span class="symbol">${escapeHtmlText(t.symbol)}</span>${t.verified ? ' <span class="meta">✓</span>' : ''}</div><span class="name">${escapeHtmlText(t.name)}</span></td>
+        <td class="holders-change-col">${formatChangeColumnHtml(t)}</td>
+        <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(t.symbol)}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
+        <td class="num holders-price-col" style="text-align:right">${formatPriceColumnHtml(t)}</td>
         <td class="num">${formatAmount(t.amountUi, '')}</td>
         <td class="holders-value-usd num" style="text-align:right">${v > 0 ? formatHoldingUsdValue(v) : '—'}</td>
         <td class="num" style="text-align:right">${v > 0 ? formatPctSmart(pct) : '—'}</td>
-        <td class="holders-category-col">${formatCategoryColumnHtml(t.category, t.subcategory)}</td>
-        <td>${t.verified ? 'Yes' : 'No'}</td>
-        <td class="num holders-price-col" style="text-align:right">${formatPriceColumnHtml(t)}</td>
-        <td class="holders-value-usd num" style="text-align:right">${t.marketCap != null ? formatUsdCompact(t.marketCap) : '—'}</td>
-        <td class="num" style="text-align:right">${t.currentSupply != null ? escapeHtmlText(formatCompactNum(t.currentSupply)) : '—'}</td>
-        <td class="num" style="text-align:right">${t.tokenAmountVolume24h != null ? escapeHtmlText(formatCompactNum(t.tokenAmountVolume24h)) : '—'}</td>
-        <td class="holders-value-usd num" style="text-align:right">${t.usdValueVolume24h != null ? formatUsdCompact(t.usdValueVolume24h) : '—'}</td>
+        <td class="num holders-mcap-supply-col" style="text-align:right">${formatMarketCapSupplyColumnHtml(t)}</td>
+        <td class="num holders-vol-col" style="text-align:right">${formatUsdVolColumnHtml(t)}</td>
         <td>${escapeHtmlText(src)}</td>
         <td class="meta">${escapeHtmlText(truncateAddress(t.mintAddress))}</td>
       </tr>`;
