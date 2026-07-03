@@ -3409,13 +3409,12 @@ td .mono {
 }
 
 .holders-value-usd-bag__svg {
-  width: 15px;
-  height: 19px;
+  width: 11px;
+  height: 15px;
   display: block;
 }
 
 .holders-value-usd-amount {
-  color: #86efac;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
