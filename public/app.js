@@ -1,6 +1,7 @@
 'use strict';
 
-const PIE_SLICE_HEX = ['#22c55e', '#2563eb', '#a855f7', '#f97316'];
+const PRICE_CHANGE_PIE_HEX = ['#4ade80', '#60a5fa', '#f87171', '#fb923c'];
+const PRICE_CHANGE_PIE_TITLES = ['Profitable', 'Breaking even', 'Losing value', 'Dead'];
 const TIER_LEGEND_SVG_VOLUME =
   '<svg class="token-tier-metric__svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12h4v8H3v-8zm7-4h4v12h-4V8zm7 6h4v6h-4v-6z"/></svg>';
 
@@ -57,75 +58,81 @@ function toNum(n) {
   return Number.isFinite(x) ? x : 0;
 }
 
+/** 0 decimals unless |value| < 1 (then 2). Values in (0, 0.01) display as 0.01. */
+function formatRoundedValue(num) {
+  const n = Number(num);
+  if (!Number.isFinite(n)) return null;
+  if (n === 0) return '0';
+  if (n > 0 && n < 0.01) return '0.01';
+  const abs = Math.abs(n);
+  if (abs < 1) return n.toFixed(2);
+  return String(Math.round(n));
+}
+
 function formatPctSmart(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || num === 0) return '0%';
-  const abs = Math.abs(num);
-  if (abs < 1) return '1%';
-  return `${num.toFixed(2)}%`;
+  return `${formatRoundedValue(num)}%`;
 }
 
 function formatUsd(n) {
   const num = toNum(n);
   if (num === 0) return '$0';
-  if (Math.abs(num) < 1) {
-    return `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+  const formatted = formatRoundedValue(num);
+  if (Math.abs(num) >= 1) {
+    return `$${Number(formatted).toLocaleString()}`;
   }
-  return `$${Math.round(num).toLocaleString()}`;
+  return `$${formatted}`;
 }
 
-/** USD display: full below 100k, compact K/M/B/T with max 2 decimals above. */
+/** USD display: full below 100k, compact K/M/B/T above. */
 function formatUsdCompact(n) {
   const num = toNum(n);
   if (!Number.isFinite(num)) return '—';
   if (num === 0) return '$0';
   const abs = Math.abs(num);
   if (abs < 100000) return formatUsd(num);
-  const trimCompact = (value) => value.toFixed(2).replace(/\.?0+$/, '');
-  if (abs >= 1e12) return `$${trimCompact(num / 1e12)}T`;
-  if (abs >= 1e9) return `$${trimCompact(num / 1e9)}B`;
-  if (abs >= 1e6) return `$${trimCompact(num / 1e6)}M`;
-  return `$${trimCompact(num / 1e3)}K`;
+  if (abs >= 1e12) return `$${formatRoundedValue(num / 1e12)}T`;
+  if (abs >= 1e9) return `$${formatRoundedValue(num / 1e9)}B`;
+  if (abs >= 1e6) return `$${formatRoundedValue(num / 1e6)}M`;
+  return `$${formatRoundedValue(num / 1e3)}K`;
 }
 
-/** Holdings table Value (USD): max 2 decimals; tiny positive values show &lt; $0.01. */
+/** Holdings table Value (USD). */
 function formatHoldingUsdValue(n) {
   const num = toNum(n);
   if (!Number.isFinite(num) || num <= 0) return '—';
-  if (num < 0.01) return '< $0.01';
   const abs = Math.abs(num);
   if (abs >= 100000) return formatUsdCompact(num);
-  const trimmed = num.toFixed(2).replace(/\.?0+$/, '');
-  return `$${trimmed}`;
+  return `$${formatRoundedValue(num)}`;
 }
 
 function formatAmount(n, symbol) {
   const num = toNum(n);
   const sym = symbol?.trim() ? ` ${symbol.trim()}` : '';
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B${sym}`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M${sym}`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K${sym}`;
-  if (num >= 1) return `${num.toLocaleString(undefined, { maximumFractionDigits: 4 })}${sym}`;
-  if (num > 0) return `${num.toPrecision(4)}${sym}`;
+  if (num >= 1e9) return `${formatRoundedValue(num / 1e9)}B${sym}`;
+  if (num >= 1e6) return `${formatRoundedValue(num / 1e6)}M${sym}`;
+  if (num >= 1e3) return `${formatRoundedValue(num / 1e3)}K${sym}`;
+  if (num >= 1) return `${formatRoundedValue(num)}${sym}`;
+  if (num > 0) return `${formatRoundedValue(num)}${sym}`;
   return `0${sym}`;
 }
 
 function formatCompactNum(n) {
   const num = toNum(n);
   if (!Number.isFinite(num) || num === 0) return '0';
-  if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-  if (num >= 1) return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  return num.toPrecision(4);
+  if (num >= 1e12) return `${formatRoundedValue(num / 1e12)}T`;
+  if (num >= 1e9) return `${formatRoundedValue(num / 1e9)}B`;
+  if (num >= 1e6) return `${formatRoundedValue(num / 1e6)}M`;
+  if (num >= 1e3) return `${formatRoundedValue(num / 1e3)}K`;
+  if (num >= 1) return formatRoundedValue(num);
+  return formatRoundedValue(num);
 }
 
 function formatTablePriceUsd(n) {
   const num = toNum(n);
   if (!Number.isFinite(num) || num <= 0) return '—';
-  const trimmed = num.toFixed(2).replace(/\.?0+$/, '');
-  return `$${trimmed}`;
+  return `$${formatRoundedValue(num)}`;
 }
 
 function formatPctChangeWithArrow(pct) {
@@ -134,8 +141,21 @@ function formatPctChangeWithArrow(pct) {
   const arrow = num >= 0 ? '↑' : '↓';
   const abs = Math.abs(num);
   if (abs === 0) return `${arrow}0%`;
-  if (abs < 1) return `${arrow}1%`;
-  return `${arrow}${Math.trunc(abs)}%`;
+  return `${arrow}${formatRoundedValue(abs)}%`;
+}
+
+function portfolioPieInlineStyle(pct) {
+  const num = Number(pct);
+  if (!Number.isFinite(num) || num <= 0) return 'background:#3f3f46';
+  const clamped = Math.min(num, 100);
+  const sliceDeg = Math.max((clamped / 100) * 360, 6);
+  return `background:conic-gradient(#22c55e 0deg ${sliceDeg}deg,#3f3f46 ${sliceDeg}deg 360deg)`;
+}
+
+function formatPortfolioPctColumnHtml(pct, hasValue) {
+  if (!hasValue) return '—';
+  const pieStyle = portfolioPieInlineStyle(pct);
+  return `<div class="holders-portfolio-pct"><span class="holders-portfolio-pie" style="${pieStyle}" aria-hidden="true"></span><span class="holders-portfolio-pct-value">${escapeHtmlText(formatPctSmart(pct))}</span></div>`;
 }
 
 function hasValidPriceChangePct(pct) {
@@ -150,7 +170,7 @@ function formatPriceChangeChipHtml(label, pct) {
 }
 
 function formatMissingChangeChipHtml(label) {
-  return `<span class="swap-pair-chg swap-pair-chg--missing">${escapeHtmlText(label)} -%</span>`;
+  return `<span class="swap-pair-chg swap-pair-chg--missing">${escapeHtmlText(label)} ---</span>`;
 }
 
 function formatChangeColumnHtml(t) {
@@ -394,7 +414,7 @@ function renderTierCard(args) {
       <ul class="token-tier-card__metrics">
         <li class="token-tier-metric">
           <span class="token-tier-metric__ico token-tier-metric__ico--share-swatch" style="--tier-swatch:${args.swatchColor}" aria-hidden="true"></span>
-          <div class="token-tier-metric__body"><span class="token-tier-metric__slice-pct">${formatPctSmart(args.slicePct)}</span><span class="token-tier-metric__muted"> of portfolio</span></div>
+          <div class="token-tier-metric__body"><span class="token-tier-metric__slice-pct">${formatPctSmart(args.slicePct)}</span><span class="token-tier-metric__muted">${escapeHtmlText(args.shareLabel ?? ' of portfolio')}</span></div>
         </li>
         <li class="token-tier-metric">
           <span class="token-tier-metric__ico token-tier-metric__ico--usd" aria-hidden="true">$</span>
@@ -654,70 +674,119 @@ function renderUsdBars(tokens) {
     .join('');
 }
 
-function portfolioBuckets(tokens, totalUsd) {
-  const sorted = [...tokens].sort((a, b) => toNum(b.valueUsd) - toNum(a.valueUsd));
-  const top1 = sorted.slice(0, 1).reduce((s, t) => s + toNum(t.valueUsd), 0);
-  const top2_5 = sorted.slice(1, 5).reduce((s, t) => s + toNum(t.valueUsd), 0);
-  const top6_10 = sorted.slice(5, 10).reduce((s, t) => s + toNum(t.valueUsd), 0);
-  const rest = Math.max(0, totalUsd - top1 - top2_5 - top6_10);
-  const pct = (v) => (totalUsd > 0 ? (v / totalUsd) * 100 : 0);
-  return {
-    sorted,
-    slices: [pct(top1), pct(top2_5), pct(top6_10), pct(rest)],
-    usd: [top1, top2_5, top6_10, rest],
-    counts: [Math.min(1, sorted.length), Math.min(4, Math.max(0, sorted.length - 1)), Math.min(5, Math.max(0, sorted.length - 5)), Math.max(0, sorted.length - 10)],
+const PIE_BREAK_EVEN_MIN = -0.5;
+const PIE_BREAK_EVEN_MAX = 1;
+const PIE_LOSING_MAX = -0.5;
+
+function isPieBreakingEvenPct(pct) {
+  return pct >= PIE_BREAK_EVEN_MIN && pct <= PIE_BREAK_EVEN_MAX;
+}
+
+function isPieLosingPct(pct) {
+  return pct < PIE_LOSING_MAX;
+}
+
+function classifyTokenPieChange(t) {
+  const has1d = hasValidPriceChangePct(t.priceChange1dPct);
+  const has7d = hasValidPriceChangePct(t.priceChange7dPct);
+  if (!has1d && !has7d) return 'dead';
+
+  const d1 = has1d ? Number(t.priceChange1dPct) : null;
+  const d7 = has7d ? Number(t.priceChange7dPct) : null;
+
+  if ((d1 != null && d1 >= 1) || (d7 != null && d7 > 1)) return 'profitable';
+
+  const losing1d = d1 != null && isPieLosingPct(d1);
+  const losing7d = d7 != null && isPieLosingPct(d7);
+  if (d1 != null && d7 != null && losing1d && losing7d) return 'losing';
+  if ((d1 != null && d7 == null && losing1d) || (d7 != null && d1 == null && losing7d)) return 'losing';
+
+  if ((d1 != null && isPieBreakingEvenPct(d1)) || (d7 != null && isPieBreakingEvenPct(d7))) return 'breaking_even';
+
+  if (losing1d || losing7d) return 'losing';
+
+  return 'breaking_even';
+}
+
+function priceChange24hBuckets(tokens) {
+  const buckets = {
+    profitable: { usd: 0, count: 0 },
+    breaking_even: { usd: 0, count: 0 },
+    losing: { usd: 0, count: 0 },
+    dead: { usd: 0, count: 0 },
   };
+  for (const t of tokens) {
+    const cat = classifyTokenPieChange(t);
+    buckets[cat].count += 1;
+    buckets[cat].usd += toNum(t.valueUsd);
+  }
+  const order = ['profitable', 'breaking_even', 'losing', 'dead'];
+  const totalCount = tokens.length || 1;
+  return {
+    order,
+    slices: order.map((k) => (buckets[k].count / totalCount) * 100),
+    usd: order.map((k) => buckets[k].usd),
+    counts: order.map((k) => buckets[k].count),
+    buckets,
+  };
+}
+
+function buildPriceChangePieInsight(bucket, totalTokens) {
+  if (totalTokens === 0) return 'No holdings loaded.';
+  const labels = {
+    profitable: 'profitable (1d ≥1% or 7d >1%)',
+    breaking_even: 'breaking even (−0.50% to 1% on 1d or 7d)',
+    losing: 'losing value (below −0.50% on 1d and 7d, or single metric below −0.50%)',
+    dead: 'dead with no price change data',
+  };
+  let topKey = bucket.order[0];
+  for (const key of bucket.order) {
+    if (bucket.buckets[key].count > bucket.buckets[topKey].count) topKey = key;
+  }
+  const topIdx = bucket.order.indexOf(topKey);
+  return `${formatPctSmart(bucket.slices[topIdx])} of tokens are ${labels[topKey]}.`;
 }
 
 function setChartsPlaceholder() {
   chartsPanel.hidden = false;
-  const empty4 = buildPieGradientWithGaps([0, 0, 0, 0], PIE_SLICE_HEX);
+  const empty4 = buildPieGradientWithGaps([0, 0, 0, 0], PRICE_CHANGE_PIE_HEX);
   portfolioPie.style.background = empty4;
-  mountDonutPieOverlays(portfolioPie, [0, 0, 0, 0], PIE_SLICE_HEX, { mock: true, hubSubline: '—' });
+  mountDonutPieOverlays(portfolioPie, [0, 0, 0, 0], PRICE_CHANGE_PIE_HEX, { mock: true, hubSubline: '—' });
   setSupplyLegendGrid(portfolioLegend, 4);
-  portfolioLegend.innerHTML = [
-    renderTierCardPlaceholder('Top holding', PIE_SLICE_HEX[0], PIE_SLICE_HEX[0]),
-    renderTierCardPlaceholder('Ranks 2–5', PIE_SLICE_HEX[1], PIE_SLICE_HEX[1]),
-    renderTierCardPlaceholder('Ranks 6–10', PIE_SLICE_HEX[2], PIE_SLICE_HEX[2]),
-    renderTierCardPlaceholder('Remaining tokens', PIE_SLICE_HEX[3], PIE_SLICE_HEX[3]),
-  ].join('');
+  portfolioLegend.innerHTML = PRICE_CHANGE_PIE_TITLES.map((title, i) =>
+    renderTierCardPlaceholder(title, PRICE_CHANGE_PIE_HEX[i], PRICE_CHANGE_PIE_HEX[i]),
+  ).join('');
   holdingsUsdBars.innerHTML = renderUsdBarsPlaceholderHtml();
-  portfolioPieLede.textContent = 'Load a wallet to see portfolio allocation by USD value.';
-  portfolioPieInsight.textContent = 'Holdings grouped by USD rank and portfolio share.';
+  portfolioPieLede.textContent = 'Load a wallet to see price change breakdown.';
+  portfolioPieInsight.textContent = 'Holdings grouped by profitable, breaking even, losing, or dead.';
 }
 
 function renderCharts(tokens, wallet, totalUsd) {
   chartsPanel.hidden = false;
-  const bucket = portfolioBuckets(tokens, totalUsd);
+  const bucket = priceChange24hBuckets(tokens);
   const display = applyMinVisibleSlices(bucket.slices);
-  portfolioPie.style.background = buildPieGradientWithGaps(display, PIE_SLICE_HEX);
-  mountDonutPieOverlays(portfolioPie, display, PIE_SLICE_HEX, {
+  portfolioPie.style.background = buildPieGradientWithGaps(display, PRICE_CHANGE_PIE_HEX);
+  mountDonutPieOverlays(portfolioPie, display, PRICE_CHANGE_PIE_HEX, {
     mock: false,
     hubSubline: `${formatUsd(totalUsd)} · ${tokens.length} tokens`,
   });
 
-  const titles = ['Top holding', 'Ranks 2–5', 'Ranks 6–10', 'Remaining tokens'];
   setSupplyLegendGrid(portfolioLegend, 4);
-  portfolioLegend.innerHTML = titles
-    .map((title, i) =>
-      renderTierCard({
-        title,
-        accent: PIE_SLICE_HEX[i],
-        swatchColor: PIE_SLICE_HEX[i],
-        slicePct: bucket.slices[i],
-        usdLine: formatUsd(bucket.usd[i]),
-        amountLine: `${bucket.counts[i]} token(s)`,
-      }),
-    )
-    .join('');
+  portfolioLegend.innerHTML = PRICE_CHANGE_PIE_TITLES.map((title, i) =>
+    renderTierCard({
+      title,
+      accent: PRICE_CHANGE_PIE_HEX[i],
+      swatchColor: PRICE_CHANGE_PIE_HEX[i],
+      slicePct: bucket.slices[i],
+      shareLabel: ' of tokens',
+      usdLine: formatUsd(bucket.usd[i]),
+      amountLine: `${bucket.counts[i]} token(s)`,
+    }),
+  ).join('');
 
-  const topSym = bucket.sorted[0]?.symbol || '—';
-  portfolioPieTitle.textContent = `Portfolio allocation (${truncateAddress(wallet)})`;
+  portfolioPieTitle.textContent = `24h price change (${truncateAddress(wallet)})`;
   portfolioPieLede.textContent = `${tokens.length} tokens · ${formatUsd(totalUsd)} estimated portfolio value`;
-  portfolioPieInsight.textContent =
-    bucket.sorted.length > 0
-      ? `Largest position: ${topSym} at ${formatPctSmart(bucket.slices[0])} of portfolio USD.`
-      : 'No priced holdings.';
+  portfolioPieInsight.textContent = buildPriceChangePieInsight(bucket, tokens.length);
 
   renderUsdBars(tokens);
 }
@@ -766,14 +835,15 @@ function renderTable(tokens, totalUsd) {
       const pct = totalUsd > 0 && v > 0 ? (v / totalUsd) * 100 : 0;
       const iconHtml = tokenIconHtml(t);
       const src = t.priceSource || (v > 0 ? 'Vybe list' : '—');
-      return `<tr>
-        <td>${i + 1}</td>
+      const pieCat = classifyTokenPieChange(t);
+      return `<tr class="holders-row holders-row--${pieCat}">
+        <td class="holders-rank-col"><div class="holders-rank-cell"><span class="holders-rank-swatch holders-rank-swatch--${pieCat}" aria-hidden="true"></span><span class="holders-rank-num">${i + 1}</span></div></td>
+        <td class="num holders-portfolio-col" style="text-align:right">${formatPortfolioPctColumnHtml(pct, v > 0)}</td>
         <td class="holders-change-col">${formatChangeColumnHtml(t)}</td>
         <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(t.symbol)}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
         <td class="num holders-price-col" style="text-align:right">${formatPriceColumnHtml(t)}</td>
         <td class="num">${formatAmount(t.amountUi, '')}</td>
         <td class="holders-value-usd num" style="text-align:right">${v > 0 ? formatHoldingUsdValue(v) : '—'}</td>
-        <td class="num" style="text-align:right">${v > 0 ? formatPctSmart(pct) : '—'}</td>
         <td class="num holders-mcap-supply-col" style="text-align:right">${formatMarketCapSupplyColumnHtml(t)}</td>
         <td class="num holders-vol-col" style="text-align:right">${formatUsdVolColumnHtml(t)}</td>
         <td>${escapeHtmlText(src)}</td>
