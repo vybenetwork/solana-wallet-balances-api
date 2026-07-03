@@ -973,7 +973,7 @@ function renderCharts(tokens, wallet, totalUsd) {
     }),
   ).join('');
 
-  portfolioPieTitle.textContent = `24h price change (${truncateAddress(wallet)})`;
+  portfolioPieTitle.textContent = 'Tokens ranked by profitability';
   portfolioPieLede.textContent = `${tokens.length} tokens · ${formatUsd(totalUsd)} estimated portfolio value`;
   portfolioPieInsight.textContent = buildPriceChangePieInsight(bucket, tokens.length);
 
