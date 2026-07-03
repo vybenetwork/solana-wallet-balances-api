@@ -846,39 +846,48 @@ function formatHoldingValueUsdCellHtml(valueUsd) {
   return `<span class="holders-value-usd-cell" style="color:${escapeHtmlAttr(color)}">${icon}<span class="holders-value-usd-amount">${escapeHtmlText(text)}</span></span>`;
 }
 
-function renderUsdBarRow(d, i, count, total, maxC, defsLen) {
+function formatBandTotalUsd(n) {
+  const num = toNum(n);
+  if (!Number.isFinite(num) || num <= 0) return '$0';
+  return `$${formatRoundedValue(num)}`;
+}
+
+function renderUsdBarRow(d, i, count, total, maxC, sumUsd) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   const w = Math.min(100, (count / maxC) * 100);
   const color = walletUsdBandColor(i);
   const safe = escapeHtmlText(d.label);
+  const totalLabel = formatBandTotalUsd(sumUsd);
   return `<div class="holders-hbar-row">
     <span class="holders-hbar-name" title="${safe}">${safe}</span>
     <div class="holders-hbar-track"><div class="holders-hbar-fill" style="width:${w}%;background:${color}"></div></div>
-    <span class="holders-hbar-meta">${formatPctSmart(pct)} <span class="holders-value-usd">${count.toLocaleString()} token(s)</span></span>
+    <span class="holders-hbar-meta">${formatPctSmart(pct)} <span class="holders-value-usd" style="color:${escapeHtmlAttr(color)}">${count.toLocaleString()} token(s) (Total: ${escapeHtmlText(totalLabel)})</span></span>
   </div>`;
 }
 
 function renderUsdBarsPlaceholderHtml() {
   const defs = walletUsdBands();
-  return defs.map((d, i) => renderUsdBarRow(d, i, 0, 0, 1, defs.length)).join('');
+  return defs.map((d, i) => renderUsdBarRow(d, i, 0, 0, 1, 0)).join('');
 }
 
 function renderUsdBars(tokens) {
   const defs = walletUsdBands();
   const counts = defs.map(() => 0);
+  const sums = defs.map(() => 0);
   let pricedCount = 0;
   for (const t of tokens) {
     const v = toNum(t.valueUsd);
     const idx = defs.findIndex((d) => d.contains(v));
     if (idx >= 0) {
       counts[idx] += 1;
+      sums[idx] += v;
       pricedCount += 1;
     }
   }
   const maxC = Math.max(1, ...counts);
   const total = pricedCount || 1;
   holdingsUsdBars.innerHTML = defs
-    .map((d, i) => renderUsdBarRow(d, i, counts[i], total, maxC, defs.length))
+    .map((d, i) => renderUsdBarRow(d, i, counts[i], total, maxC, sums[i]))
     .join('');
 }
 
