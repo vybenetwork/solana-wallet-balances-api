@@ -2,6 +2,22 @@
 
 const PRICE_CHANGE_PIE_HEX = ['#4ade80', '#60a5fa', '#f87171', '#fb923c'];
 const PRICE_CHANGE_PIE_TITLES = ['Profitable', 'Breaking even', 'Losing value', 'Dead'];
+const NATIVE_SOL_MINT = '11111111111111111111111111111111';
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const STABLECOIN_MINTS = new Set([
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+  'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB',
+  '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo',
+  'JEFFSQ3s8T3wKsvp4tnRAsUBW7Cqgnf8ukBZC4C8XBm1',
+  'Dn4noZ5jgGfkntzcQSUZ8czkreiZ1ForXYoV2H8Dm7S1',
+  '7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT',
+  'USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX',
+  'A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM',
+  'A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6',
+  'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT',
+]);
+const STABLE_SYMBOLS = new Set(['USD', 'USDC', 'USDT', 'PYUSD', 'USD1', 'USDE', 'USDH', 'UXD', 'USDY']);
 const TIER_LEGEND_SVG_VOLUME =
   '<svg class="token-tier-metric__svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12h4v8H3v-8zm7-4h4v12h-4V8zm7 6h4v6h-4v-6z"/></svg>';
 
@@ -23,6 +39,14 @@ const holdingsUsdBars = document.getElementById('holdingsUsdBars');
 const holdersLoading = document.getElementById('holdersLoading');
 const holdersError = document.getElementById('holdersError');
 const holdersMeta = document.getElementById('holdersMeta');
+const holdersSummaryCount = document.getElementById('holdersSummaryCount');
+const holdersSummaryProfitable = document.getElementById('holdersSummaryProfitable');
+const holdersSummaryBreakingEven = document.getElementById('holdersSummaryBreakingEven');
+const holdersSummaryLosing = document.getElementById('holdersSummaryLosing');
+const holdersSummaryDead = document.getElementById('holdersSummaryDead');
+const holdersSummaryVerified = document.getElementById('holdersSummaryVerified');
+const holdersSummaryCategorised = document.getElementById('holdersSummaryCategorised');
+const holdersSummaryCategorisedTip = document.getElementById('holdersSummaryCategorisedTip');
 const holdersBody = document.getElementById('holdersBody');
 const errorSection = document.getElementById('errorSection');
 const errorText = document.getElementById('errorText');
@@ -116,6 +140,49 @@ function formatAmount(n, symbol) {
   if (num >= 1) return `${formatRoundedValue(num)}${sym}`;
   if (num > 0) return `${formatRoundedValue(num)}${sym}`;
   return `0${sym}`;
+}
+
+function displayTokenSymbol(symbol) {
+  const sym = (symbol || '').trim();
+  if (!sym) return '—';
+  if (sym.toUpperCase() === 'WSOL') return 'SOL';
+  return sym;
+}
+
+function isStableToken(mint, symbol) {
+  const m = (mint || '').trim();
+  if (m && STABLECOIN_MINTS.has(m)) return true;
+  const sym = displayTokenSymbol(symbol).toUpperCase();
+  return STABLE_SYMBOLS.has(sym);
+}
+
+function isSolToken(mint, symbol) {
+  const m = (mint || '').trim();
+  if (m === NATIVE_SOL_MINT || m === WSOL_MINT) return true;
+  return displayTokenSymbol(symbol) === 'SOL';
+}
+
+function wrapHoldingAmountHtml(amountText, mint, symbol) {
+  const raw = (amountText || '').trim();
+  if (!raw || raw === '—') return '—';
+  if (isStableToken(mint, symbol)) {
+    return `<span class="holders-amount-cell amount-usdc">${escapeHtmlText(raw)}</span>`;
+  }
+  if (isSolToken(mint, symbol)) {
+    return `<span class="holders-amount-cell amount-sol">${escapeHtmlText(raw)}</span>`;
+  }
+  const lastSpace = raw.lastIndexOf(' ');
+  if (lastSpace === -1) {
+    return `<span class="holders-amount-cell amount-other-value">${escapeHtmlText(raw)}</span>`;
+  }
+  const valuePart = raw.slice(0, lastSpace);
+  const symbolPart = raw.slice(lastSpace + 1);
+  return `<span class="holders-amount-cell"><span class="amount-other-value">${escapeHtmlText(valuePart)}</span> <span class="amount-other-symbol">${escapeHtmlText(symbolPart)}</span></span>`;
+}
+
+function formatHoldingAmountCellHtml(t) {
+  const sym = displayTokenSymbol(t.symbol);
+  return wrapHoldingAmountHtml(formatAmount(t.amountUi, sym), t.mintAddress, t.symbol);
 }
 
 function formatCompactNum(n) {
@@ -623,6 +690,7 @@ function renderWalletSummaryPlaceholder() {
   walletSummarySub.textContent = 'Enter a wallet and load balances';
   walletLastUpdatedValue.textContent = '—';
   walletSummaryStats.innerHTML = buildWalletSummaryPlaceholderHtml();
+  updateHoldersSummaryStrip([]);
 }
 
 function walletUsdBands() {
@@ -827,7 +895,49 @@ function renderSummaryStats(tokens, wallet, totalUsd) {
   });
 }
 
+function countCategorisedTokens(tokens) {
+  return tokens.filter((t) => (t.category || '').trim() || (t.subcategory || '').trim()).length;
+}
+
+function buildCategorisedSummaryTooltip(tokens) {
+  const taxonomy = aggregateWalletTaxonomy(tokens);
+  const parts = [];
+  if (taxonomy.uniqueCategories > 0) {
+    parts.push(`${taxonomy.uniqueCategories} categor${taxonomy.uniqueCategories === 1 ? 'y' : 'ies'}`);
+  }
+  if (taxonomy.uniqueSubcategories > 0) {
+    parts.push(`${taxonomy.uniqueSubcategories} subcategor${taxonomy.uniqueSubcategories === 1 ? 'y' : 'ies'}`);
+  }
+  if (taxonomy.topCategoryLine !== '—') {
+    const topCat = taxonomy.topCategoryLine.split(' · ')[0];
+    parts.push(`Top category: ${topCat}`);
+  }
+  if (taxonomy.topSubcategoryLine !== '—') {
+    const topSub = taxonomy.topSubcategoryLine.split(' · ')[0];
+    parts.push(`Top subcategory: ${topSub}`);
+  }
+  if (parts.length === 0) return 'No tokens with category or subcategory';
+  return parts.join(' · ');
+}
+
+function updateHoldersSummaryStrip(tokens) {
+  const bucket = priceChange24hBuckets(tokens);
+  const verified = tokens.filter((t) => t.verified).length;
+  const categorised = countCategorisedTokens(tokens);
+  if (holdersSummaryCount) holdersSummaryCount.textContent = String(tokens.length);
+  if (holdersSummaryProfitable) holdersSummaryProfitable.textContent = String(bucket.buckets.profitable.count);
+  if (holdersSummaryBreakingEven) holdersSummaryBreakingEven.textContent = String(bucket.buckets.breaking_even.count);
+  if (holdersSummaryLosing) holdersSummaryLosing.textContent = String(bucket.buckets.losing.count);
+  if (holdersSummaryDead) holdersSummaryDead.textContent = String(bucket.buckets.dead.count);
+  if (holdersSummaryVerified) holdersSummaryVerified.textContent = String(verified);
+  if (holdersSummaryCategorised) holdersSummaryCategorised.textContent = String(categorised);
+  if (holdersSummaryCategorisedTip) {
+    holdersSummaryCategorisedTip.textContent = buildCategorisedSummaryTooltip(tokens);
+  }
+}
+
 function renderTable(tokens, totalUsd) {
+  updateHoldersSummaryStrip(tokens);
   const sorted = [...tokens].sort((a, b) => toNum(b.valueUsd) - toNum(a.valueUsd));
   holdersBody.innerHTML = sorted
     .map((t, i) => {
@@ -838,14 +948,14 @@ function renderTable(tokens, totalUsd) {
       const pieCat = classifyTokenPieChange(t);
       return `<tr class="holders-row holders-row--${pieCat}">
         <td class="holders-rank-col"><div class="holders-rank-cell"><span class="holders-rank-swatch holders-rank-swatch--${pieCat}" aria-hidden="true"></span><span class="holders-rank-num">${i + 1}</span></div></td>
-        <td class="num holders-portfolio-col" style="text-align:right">${formatPortfolioPctColumnHtml(pct, v > 0)}</td>
+        <td class="num holders-portfolio-col">${formatPortfolioPctColumnHtml(pct, v > 0)}</td>
         <td class="holders-change-col">${formatChangeColumnHtml(t)}</td>
         <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(t.symbol)}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
-        <td class="num holders-price-col" style="text-align:right">${formatPriceColumnHtml(t)}</td>
-        <td class="num">${formatAmount(t.amountUi, '')}</td>
-        <td class="holders-value-usd num" style="text-align:right">${v > 0 ? formatHoldingUsdValue(v) : '—'}</td>
-        <td class="num holders-mcap-supply-col" style="text-align:right">${formatMarketCapSupplyColumnHtml(t)}</td>
-        <td class="num holders-vol-col" style="text-align:right">${formatUsdVolColumnHtml(t)}</td>
+        <td class="num holders-price-col">${formatPriceColumnHtml(t)}</td>
+        <td class="num holders-amount-col">${formatHoldingAmountCellHtml(t)}</td>
+        <td class="holders-value-usd num">${v > 0 ? formatHoldingUsdValue(v) : '—'}</td>
+        <td class="num holders-mcap-supply-col">${formatMarketCapSupplyColumnHtml(t)}</td>
+        <td class="num holders-vol-col">${formatUsdVolColumnHtml(t)}</td>
         <td>${escapeHtmlText(src)}</td>
         <td class="meta">${escapeHtmlText(truncateAddress(t.mintAddress))}</td>
       </tr>`;
