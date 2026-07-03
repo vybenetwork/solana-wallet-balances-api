@@ -4319,11 +4319,11 @@ td .mono {
 
 .wallet-usd-hbar-list .holders-hbar-track {
   height: 11px;
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 .wallet-usd-hbar-list .holders-hbar-fill {
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 .holders-hbar-fill--trade-scale {
