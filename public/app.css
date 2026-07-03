@@ -2786,6 +2786,7 @@ button:not(.vybe-action-btn):disabled {
   gap: 0.25rem;
   color: #a1a1aa;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .holders-mint-link:hover {

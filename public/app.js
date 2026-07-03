@@ -83,6 +83,12 @@ function truncateAddress(addr) {
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
 }
 
+function mintColumnLabel(addr) {
+  const a = String(addr || '').trim();
+  if (!a) return '';
+  return a.slice(0, 5);
+}
+
 function toNum(n) {
   const x = Number(n);
   return Number.isFinite(x) ? x : 0;
@@ -1122,7 +1128,7 @@ function formatPriceSourceCellHtml(src) {
 function formatMintCellHtml(mint) {
   const addr = String(mint || '').trim();
   if (!addr) return '—';
-  const label = truncateAddress(addr);
+  const label = mintColumnLabel(addr);
   const href = `${SOLSCAN_TOKEN}${encodeURIComponent(addr)}`;
   return `<a class="holders-mint-link" href="${escapeHtmlAttr(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtmlAttr(addr)}">${escapeHtmlText(label)}${HOLDERS_EXTERNAL_LINK_SVG}</a>`;
 }
