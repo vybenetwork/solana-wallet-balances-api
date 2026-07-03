@@ -2,6 +2,7 @@
 
 const PRICE_CHANGE_PIE_HEX = ['#4ade80', '#60a5fa', '#f87171', '#fb923c'];
 const PRICE_CHANGE_PIE_TITLES = ['Profitable', 'Breaking even', 'Losing value', 'Dead'];
+const PRICE_CHANGE_PIE_KEYS = ['profitable', 'breaking_even', 'losing', 'dead'];
 const NATIVE_SOL_MINT = '11111111111111111111111111111111';
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 const STABLECOIN_MINTS = new Set([
@@ -237,7 +238,12 @@ function formatPriceChangeChipHtml(label, pct) {
 }
 
 function formatMissingChangeChipHtml(label) {
-  return `<span class="swap-pair-chg swap-pair-chg--missing">${escapeHtmlText(label)} ---</span>`;
+  const placeholder = label === '7d:' ? '----' : '---';
+  return `<span class="swap-pair-chg swap-pair-chg--missing">${escapeHtmlText(label)} ${placeholder}</span>`;
+}
+
+function formatZeroChangeChipHtml(label) {
+  return `<span class="swap-pair-chg swap-pair-chg--dead">${escapeHtmlText(label)} 0%</span>`;
 }
 
 function formatChangeColumnHtml(t) {
@@ -245,11 +251,11 @@ function formatChangeColumnHtml(t) {
   const has7d = hasValidPriceChangePct(t.priceChange7dPct);
 
   if (!has1d && !has7d) {
-    return `<div class="holders-price-changes"><span class="swap-pair-chg swap-pair-chg--dead">Dead Token</span></div>`;
+    return `<div class="holders-price-changes">${formatZeroChangeChipHtml('1d:')}${formatZeroChangeChipHtml('7d:')}</div>`;
   }
 
   const chips = [
-    has1d ? formatPriceChangeChipHtml('1d:', t.priceChange1dPct) : formatMissingChangeChipHtml('1d:'),
+    has1d ? formatPriceChangeChipHtml('1d:', t.priceChange1dPct) : has7d ? formatZeroChangeChipHtml('1d:') : formatMissingChangeChipHtml('1d:'),
     has7d ? formatPriceChangeChipHtml('7d:', t.priceChange7dPct) : formatMissingChangeChipHtml('7d:'),
   ];
 
@@ -262,14 +268,79 @@ function formatPriceColumnHtml(t) {
   return `<span class="holders-table-price">${escapeHtmlText(spot)}</span>`;
 }
 
+const USD_MAGNITUDE_BAR_COLORS = {
+  red: '#ef4444',
+  orange: '#fb923c',
+  yellow: '#facc15',
+  lightGreen: '#86efac',
+  green: '#22c55e',
+};
+
+const USD_MAGNITUDE_BAR_LABELS = ['$0–$10k', '$10k–$100k', '$100k–$500k', '$500k–$1M', '$1M+'];
+
+function usdMagnitudeBarCount(usd) {
+  const n = Number(usd);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  if (n < 10_000) return 1;
+  if (n < 100_000) return 2;
+  if (n < 500_000) return 3;
+  if (n < 1_000_000) return 4;
+  return 5;
+}
+
+function usdMagnitudeBarTierMeta(bars) {
+  if (bars <= 1) {
+    return { tierClass: 'holders-usd-tier--red', color: USD_MAGNITUDE_BAR_COLORS.red, label: USD_MAGNITUDE_BAR_LABELS[0] };
+  }
+  if (bars === 2) {
+    return { tierClass: 'holders-usd-tier--orange', color: USD_MAGNITUDE_BAR_COLORS.orange, label: USD_MAGNITUDE_BAR_LABELS[1] };
+  }
+  if (bars === 3) {
+    return { tierClass: 'holders-usd-tier--yellow', color: USD_MAGNITUDE_BAR_COLORS.yellow, label: USD_MAGNITUDE_BAR_LABELS[2] };
+  }
+  if (bars === 4) {
+    return { tierClass: 'holders-usd-tier--light-green', color: USD_MAGNITUDE_BAR_COLORS.lightGreen, label: USD_MAGNITUDE_BAR_LABELS[3] };
+  }
+  return { tierClass: 'holders-usd-tier--green', color: USD_MAGNITUDE_BAR_COLORS.green, label: USD_MAGNITUDE_BAR_LABELS[4] };
+}
+
+function renderUsdMagnitudeBars(bars, labelPrefix) {
+  if (bars < 1 || bars > 5) return '';
+  const { color, label } = usdMagnitudeBarTierMeta(bars);
+  const tierLabel = `${labelPrefix} ${label}`;
+  const barHtml = Array.from({ length: 5 }, (_, i) => {
+    const active = i < bars;
+    const style = active ? ` style="background:${color}"` : '';
+    return `<span class="trade-volume-bar${active ? ' trade-volume-bar--active' : ''}"${style}></span>`;
+  }).join('');
+  return `<span class="trade-volume-bars" aria-label="${escapeHtmlAttr(tierLabel)}" title="${escapeHtmlAttr(tierLabel)}">${barHtml}</span>`;
+}
+
+function wrapHoldersCellWithBars(mainHtml, barsHtml) {
+  if (!mainHtml || mainHtml === '—') return mainHtml || '—';
+  if (!barsHtml) return mainHtml;
+  return `<span class="trades-cell-with-volume"><span class="trades-cell-with-volume__bars">${barsHtml}</span><span class="trades-cell-with-volume__main">${mainHtml}</span></span>`;
+}
+
+function formatUsdMagnitudeCellHtml(rawValue, formattedText, labelPrefix) {
+  const bars = usdMagnitudeBarCount(rawValue);
+  if (formattedText === '—' || bars === 0) return '—';
+  const { tierClass } = usdMagnitudeBarTierMeta(bars);
+  const main = `<span class="holders-usd-tier ${tierClass}">${escapeHtmlText(formattedText)}</span>`;
+  const barsHtml = renderUsdMagnitudeBars(bars, labelPrefix);
+  return wrapHoldersCellWithBars(main, barsHtml);
+}
+
 function formatMarketCapSupplyColumnHtml(t) {
-  const mcap = t.marketCap != null ? formatUsdCompact(t.marketCap) : '—';
-  return `<span class="holders-value-usd">${escapeHtmlText(mcap)}</span>`;
+  if (t.marketCap == null) return '—';
+  const formatted = formatUsdCompact(t.marketCap);
+  return formatUsdMagnitudeCellHtml(t.marketCap, formatted, 'Market cap');
 }
 
 function formatUsdVolColumnHtml(t) {
-  const usd = t.usdValueVolume24h != null ? formatUsdCompact(t.usdValueVolume24h) : '—';
-  return `<span class="holders-value-usd">${escapeHtmlText(usd)}</span>`;
+  if (t.usdValueVolume24h == null) return '—';
+  const formatted = formatUsdCompact(t.usdValueVolume24h);
+  return formatUsdMagnitudeCellHtml(t.usdValueVolume24h, formatted, 'USD volume');
 }
 
 function formatCategoryTooltip(category, subcategory) {
@@ -285,26 +356,23 @@ function tokenBadgeHtml(className, tipText, svgMarkup) {
   return `<span class="token-badge ${className} token-badge--has-tip" tabindex="0" aria-label="${escapeHtmlAttr(tipText)}"><svg class="token-badge__svg" viewBox="0 0 16 16" aria-hidden="true">${svgMarkup}</svg><span class="token-badge-tip" role="tooltip">${tip}</span></span>`;
 }
 
+const HOLDERS_BADGE_SVGS = {
+  verified:
+    '<rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="#16a34a" stroke="#4ade80" stroke-width="1"/><path d="M4.5 8.2 6.8 10.5 11.5 5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  info:
+    '<rect x="2" y="2" width="12" height="12" rx="2" fill="#2563eb"/><path d="M8 7.2V11" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r="0.85" fill="#fff"/>',
+  dead:
+    '<path d="M8 2.2 14.2 13.8H1.8L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 6.1V9.4" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><circle cx="8" cy="11.4" r="0.75" fill="currentColor"/>',
+};
+
 function tokenSymbolBadgesHtml(t) {
   const parts = [];
   if (t.verified) {
-    parts.push(
-      tokenBadgeHtml(
-        'token-badge--verified',
-        'Verified',
-        '<rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="#2563eb" stroke="#60a5fa" stroke-width="1"/><path d="M4.5 8.2 6.8 10.5 11.5 5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
-      ),
-    );
+    parts.push(tokenBadgeHtml('token-badge--verified', 'Verified', HOLDERS_BADGE_SVGS.verified));
   }
   const catTip = formatCategoryTooltip(t.category, t.subcategory);
   if (catTip) {
-    parts.push(
-      tokenBadgeHtml(
-        'token-badge--info',
-        catTip,
-        '<circle cx="8" cy="8" r="6.5" fill="none" stroke="#71717a" stroke-width="1.2"/><path d="M8 7.2V11" stroke="#a1a1aa" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r="0.75" fill="#a1a1aa"/>',
-      ),
-    );
+    parts.push(tokenBadgeHtml('token-badge--info', catTip, HOLDERS_BADGE_SVGS.info));
   }
   if (parts.length === 0) return '';
   return `<span class="token-symbol-badges">${parts.join('')}</span>`;
@@ -475,9 +543,13 @@ function setSupplyLegendGrid(el, sliceCount) {
 
 function renderTierCard(args) {
   const t = escapeHtmlText(args.title);
+  const iconHtml =
+    args.pieRankKey && typeof holdersPieRankIconSvg === 'function'
+      ? `<span class="token-tier-card__title-icon holders-summary-label-icon holders-summary-label-icon--${args.pieRankKey}" aria-hidden="true">${holdersPieRankIconSvg(args.pieRankKey, 'token-tier-card__title-icon__svg')}</span>`
+      : '';
   return `<div class="token-supply-legend-item token-supply-legend-item--tier-dashboard">
     <article class="token-tier-card" style="--tier-accent:${args.accent};--tier-swatch:${args.swatchColor}">
-      <h4 class="token-tier-card__title">${t}</h4>
+      <h4 class="token-tier-card__title">${iconHtml}<span class="token-tier-card__title-text">${t}</span></h4>
       <ul class="token-tier-card__metrics">
         <li class="token-tier-metric">
           <span class="token-tier-metric__ico token-tier-metric__ico--share-swatch" style="--tier-swatch:${args.swatchColor}" aria-hidden="true"></span>
@@ -496,9 +568,10 @@ function renderTierCard(args) {
   </div>`;
 }
 
-function renderTierCardPlaceholder(title, accent, swatch) {
+function renderTierCardPlaceholder(title, accent, swatch, pieRankKey) {
   return renderTierCard({
     title,
+    pieRankKey,
     accent,
     swatchColor: swatch,
     slicePct: 0,
@@ -783,8 +856,7 @@ const HOLDERS_PIE_RANK_ICONS = {
     '<path d="M2.5 8h11" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/><path d="M5.5 6.15h5M5.5 9.85h5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.55"/>',
   losing:
     '<path d="M2.5 4.5 6.5 8.5 9 6 13.5 11.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 11.5H13.5V8.5" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>',
-  dead:
-    '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.15" stroke-dasharray="2.2 2.2"/><path d="M5.5 8h5" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>',
+  dead: HOLDERS_BADGE_SVGS.dead,
 };
 
 const HOLDERS_PIE_RANK_LABELS = {
@@ -799,6 +871,11 @@ function holdersPieRankIconSvg(key, className = 'holders-pie-rank-icon__svg') {
   return `<svg class="${className}" viewBox="0 0 16 16" aria-hidden="true">${paths}</svg>`;
 }
 
+function holdersBadgeIconSvg(key, className = 'holders-summary-label-badge__svg') {
+  const paths = HOLDERS_BADGE_SVGS[key] || '';
+  return `<svg class="${className}" viewBox="0 0 16 16" aria-hidden="true">${paths}</svg>`;
+}
+
 function holdersRankBadgeHtml(key) {
   const label = HOLDERS_PIE_RANK_LABELS[key] || key;
   return `<span class="holders-rank-badge holders-rank-badge--${key}" title="${escapeHtmlAttr(label)}" aria-label="${escapeHtmlAttr(label)}">${holdersPieRankIconSvg(key, 'holders-rank-badge__svg')}</span>`;
@@ -810,6 +887,12 @@ function hydrateHoldersSummaryLabelIcons() {
     if (!key || !HOLDERS_PIE_RANK_ICONS[key]) return;
     el.innerHTML = holdersPieRankIconSvg(key, 'holders-summary-label-icon__svg');
     el.classList.add('holders-summary-label-icon', `holders-summary-label-icon--${key}`);
+  });
+  document.querySelectorAll('[data-holders-badge]').forEach((el) => {
+    const key = el.dataset.holdersBadge;
+    if (!key || !HOLDERS_BADGE_SVGS[key]) return;
+    const svgClass = el.closest('.token-badge') ? 'token-badge__svg' : 'holders-summary-label-badge__svg';
+    el.outerHTML = holdersBadgeIconSvg(key, svgClass);
   });
 }
 
@@ -859,11 +942,11 @@ function setChartsPlaceholder() {
   mountDonutPieOverlays(portfolioPie, [0, 0, 0, 0], PRICE_CHANGE_PIE_HEX, { mock: true, hubSubline: '—' });
   setSupplyLegendGrid(portfolioLegend, 4);
   portfolioLegend.innerHTML = PRICE_CHANGE_PIE_TITLES.map((title, i) =>
-    renderTierCardPlaceholder(title, PRICE_CHANGE_PIE_HEX[i], PRICE_CHANGE_PIE_HEX[i]),
+    renderTierCardPlaceholder(title, PRICE_CHANGE_PIE_HEX[i], PRICE_CHANGE_PIE_HEX[i], PRICE_CHANGE_PIE_KEYS[i]),
   ).join('');
   holdingsUsdBars.innerHTML = renderUsdBarsPlaceholderHtml();
   portfolioPieLede.textContent = 'Load a wallet to see price change breakdown.';
-  portfolioPieInsight.textContent = 'Holdings grouped by profitable, breaking even, losing, or dead.';
+  portfolioPieInsight.textContent = 'Profitable, even, losing, or dead tokens (1d/7d).';
 }
 
 function renderCharts(tokens, wallet, totalUsd) {
@@ -880,6 +963,7 @@ function renderCharts(tokens, wallet, totalUsd) {
   portfolioLegend.innerHTML = PRICE_CHANGE_PIE_TITLES.map((title, i) =>
     renderTierCard({
       title,
+      pieRankKey: PRICE_CHANGE_PIE_KEYS[i],
       accent: PRICE_CHANGE_PIE_HEX[i],
       swatchColor: PRICE_CHANGE_PIE_HEX[i],
       slicePct: bucket.slices[i],
@@ -961,16 +1045,29 @@ function updateHoldersSummaryStrip(tokens) {
   const bucket = priceChange24hBuckets(tokens);
   const verified = tokens.filter((t) => t.verified).length;
   const categorised = countCategorisedTokens(tokens);
-  if (holdersSummaryCount) holdersSummaryCount.textContent = String(tokens.length);
-  if (holdersSummaryProfitable) holdersSummaryProfitable.textContent = String(bucket.buckets.profitable.count);
-  if (holdersSummaryBreakingEven) holdersSummaryBreakingEven.textContent = String(bucket.buckets.breaking_even.count);
-  if (holdersSummaryLosing) holdersSummaryLosing.textContent = String(bucket.buckets.losing.count);
-  if (holdersSummaryDead) holdersSummaryDead.textContent = String(bucket.buckets.dead.count);
-  if (holdersSummaryVerified) holdersSummaryVerified.textContent = String(verified);
-  if (holdersSummaryCategorised) holdersSummaryCategorised.textContent = String(categorised);
+  const total = tokens.length;
+  if (holdersSummaryCount) holdersSummaryCount.textContent = String(total);
+  const setSummaryValue = (el, count) => {
+    if (!el) return;
+    el.innerHTML = holdersSummaryRatioValueHtml(count, total);
+  };
+  setSummaryValue(holdersSummaryProfitable, bucket.buckets.profitable.count);
+  setSummaryValue(holdersSummaryBreakingEven, bucket.buckets.breaking_even.count);
+  setSummaryValue(holdersSummaryLosing, bucket.buckets.losing.count);
+  setSummaryValue(holdersSummaryDead, bucket.buckets.dead.count);
+  setSummaryValue(holdersSummaryVerified, verified);
+  setSummaryValue(holdersSummaryCategorised, categorised);
   if (holdersSummaryCategorisedTip) {
     holdersSummaryCategorisedTip.textContent = buildCategorisedSummaryTooltip(tokens);
   }
+}
+
+function holdersSummaryRatioValueHtml(count, total) {
+  const n = Number(count);
+  const safeCount = Number.isFinite(n) ? n : 0;
+  const safeTotal = Number.isFinite(Number(total)) ? Number(total) : 0;
+  const pct = safeTotal > 0 ? (safeCount / safeTotal) * 100 : 0;
+  return `<span class="trades-summary-value__main">${safeCount}</span><span class="trades-summary-value__suffix"> / ${safeTotal} <span class="trades-summary-value__pct">(${escapeHtmlText(formatPctSmart(pct))})</span></span>`;
 }
 
 function renderTable(tokens, totalUsd) {
@@ -988,9 +1085,9 @@ function renderTable(tokens, totalUsd) {
         <td class="num holders-portfolio-col">${formatPortfolioPctColumnHtml(pct, v > 0)}</td>
         <td class="holders-change-col">${formatChangeColumnHtml(t)}</td>
         <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(t.symbol)}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
-        <td class="num holders-price-col">${formatPriceColumnHtml(t)}</td>
-        <td class="num holders-amount-col">${formatHoldingAmountCellHtml(t)}</td>
         <td class="holders-value-usd num">${v > 0 ? formatHoldingUsdValue(v) : '—'}</td>
+        <td class="num holders-amount-col">${formatHoldingAmountCellHtml(t)}</td>
+        <td class="num holders-price-col">${formatPriceColumnHtml(t)}</td>
         <td class="num holders-mcap-supply-col">${formatMarketCapSupplyColumnHtml(t)}</td>
         <td class="num holders-vol-col">${formatUsdVolColumnHtml(t)}</td>
         <td>${escapeHtmlText(src)}</td>

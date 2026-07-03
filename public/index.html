@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#0f0f12" />
     <link rel="canonical" href="https://solana-wallet-balances-api.vybenetwork.com/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="app.css?v=48" />
+    <link rel="stylesheet" href="app.css?v=58" />
   </head>
   <body>
     <div class="container">
@@ -312,9 +312,7 @@
             </div>
             <div class="trades-summary-item holders-summary-item--verified">
               <span class="trades-summary-label">
-                <span class="holders-summary-label-badge" aria-hidden="true">
-                  <svg class="holders-summary-label-badge__svg" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="#2563eb" stroke="#60a5fa" stroke-width="1"/><path d="M4.5 8.2 6.8 10.5 11.5 5.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </span>
+                <span class="holders-summary-label-badge" data-holders-badge="verified" aria-hidden="true"></span>
                 Verified
               </span>
               <span class="trades-summary-value" id="holdersSummaryVerified">0</span>
@@ -322,7 +320,7 @@
             <div class="trades-summary-item holders-summary-item--categorised">
               <span class="trades-summary-label">
                 <span class="holders-summary-label-badge token-badge token-badge--info token-badge--has-tip" tabindex="0" aria-label="Category breakdown">
-                  <svg class="token-badge__svg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#71717a" stroke-width="1.2"/><path d="M8 7.2V11" stroke="#a1a1aa" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r="0.75" fill="#a1a1aa"/></svg>
+                  <span data-holders-badge="info" aria-hidden="true"></span>
                   <span class="token-badge-tip" id="holdersSummaryCategorisedTip" role="tooltip">—</span>
                 </span>
                 Categorised
@@ -338,9 +336,9 @@
                   <th>% portfolio</th>
                   <th>Change<br /><span class="holders-th-sublabel">(1d / 7d)</span></th>
                   <th>Token</th>
-                  <th>Price (USD)</th>
-                  <th>Amount</th>
                   <th>Value (USD)</th>
+                  <th>Amount</th>
+                  <th>Price (USD)</th>
                   <th>Market cap</th>
                   <th>USD vol (24h)</th>
                   <th>Price source</th>
@@ -359,6 +357,6 @@
       </section>
     </div>
     <script src="charts-pie.js?v=1"></script>
-    <script src="app.js?v=48"></script>
+    <script src="app.js?v=58"></script>
   </body>
 </html>

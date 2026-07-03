@@ -1737,7 +1737,7 @@ button:not(.vybe-action-btn):disabled {
 }
 
 .token-badge--verified .token-badge__svg {
-  filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.35));
+  filter: drop-shadow(0 0 3px rgba(74, 222, 128, 0.35));
 }
 
 .holders-section .token-header .name {
@@ -2372,7 +2372,7 @@ button:not(.vybe-action-btn):disabled {
 }
 
 .holders-summary-item--verified::before {
-  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  background: linear-gradient(180deg, #4ade80, #16a34a);
 }
 
 .holders-summary-item--categorised::before {
@@ -2547,11 +2547,32 @@ button:not(.vybe-action-btn):disabled {
 }
 
 .trades-summary-value {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.12rem;
   font-size: 1.05rem;
   font-weight: 700;
   color: #f4f4f5;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.15;
+}
+
+.trades-summary-value__main {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.trades-summary-value__suffix {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  letter-spacing: 0.01em;
+}
+
+.trades-summary-value__pct {
+  color: #71717a;
 }
 
 /* Holdings table — matches #tradesTable */
@@ -3254,30 +3275,105 @@ td .mono {
   font-variant-numeric: tabular-nums;
 }
 
-.holders-mcap-supply-col {
+.holders-mcap-supply-col,
+.holders-vol-col {
   vertical-align: middle;
 }
 
-.holders-vol-cell {
-  display: flex;
-  flex-direction: column;
+.trade-volume-bars {
+  display: inline-flex;
   align-items: flex-end;
-  gap: 0.12rem;
-  line-height: 1.2;
+  justify-content: center;
+  gap: 2px;
+  height: 14px;
+  vertical-align: middle;
 }
 
-.holders-vol-usd {
+.trade-volume-bar {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: #3f3f46;
+}
+
+.trade-volume-bar:nth-child(1) { height: 4px; }
+.trade-volume-bar:nth-child(2) { height: 6px; }
+.trade-volume-bar:nth-child(3) { height: 8px; }
+.trade-volume-bar:nth-child(4) { height: 10px; }
+.trade-volume-bar:nth-child(5) { height: 12px; }
+
+.trades-cell-with-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.trades-cell-with-volume__main {
+  min-width: 0;
+}
+
+.trades-cell-with-volume__bars {
+  flex-shrink: 0;
+}
+
+#holdersTable td:nth-child(8) .trades-cell-with-volume__bars,
+#holdersTable td:nth-child(8) .trades-cell-with-volume__main,
+#holdersTable td:nth-child(9) .trades-cell-with-volume__bars,
+#holdersTable td:nth-child(9) .trades-cell-with-volume__main {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+}
+
+#holdersTable td:nth-child(8) .trade-volume-bars,
+#holdersTable td:nth-child(9) .trade-volume-bars {
+  height: 1.1em;
+  align-items: flex-end;
+  align-self: center;
+}
+
+#holdersTable td:nth-child(8) .trade-volume-bar,
+#holdersTable td:nth-child(9) .trade-volume-bar {
+  width: 0.22em;
+  border-radius: 0.05em;
+}
+
+#holdersTable td:nth-child(8) .trade-volume-bar:nth-child(1),
+#holdersTable td:nth-child(9) .trade-volume-bar:nth-child(1) { height: 0.35em; }
+#holdersTable td:nth-child(8) .trade-volume-bar:nth-child(2),
+#holdersTable td:nth-child(9) .trade-volume-bar:nth-child(2) { height: 0.5em; }
+#holdersTable td:nth-child(8) .trade-volume-bar:nth-child(3),
+#holdersTable td:nth-child(9) .trade-volume-bar:nth-child(3) { height: 0.65em; }
+#holdersTable td:nth-child(8) .trade-volume-bar:nth-child(4),
+#holdersTable td:nth-child(9) .trade-volume-bar:nth-child(4) { height: 0.8em; }
+#holdersTable td:nth-child(8) .trade-volume-bar:nth-child(5),
+#holdersTable td:nth-child(9) .trade-volume-bar:nth-child(5) { height: 0.95em; }
+
+.holders-usd-tier {
   font-weight: 600;
-}
-
-.holders-vol-token {
-  color: #facc15;
-  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
-.holders-vol-col {
-  vertical-align: middle;
+.holders-usd-tier--red {
+  color: #ef4444;
+}
+
+.holders-usd-tier--orange {
+  color: #fb923c;
+}
+
+.holders-usd-tier--yellow {
+  color: #facc15;
+}
+
+.holders-usd-tier--light-green {
+  color: #86efac;
+}
+
+.holders-usd-tier--green {
+  color: #22c55e;
 }
 
 .holders-value-usd {
@@ -3384,7 +3480,8 @@ td .mono {
 
 .wallet-charts-row__col--portfolio .token-trade-tier-dash__main {
   grid-template-columns: minmax(153px, 270px) minmax(0, 1fr);
-  gap: 1rem -0.25rem;
+  gap: 1rem 3rem;
+  align-items: start;
 }
 
 .holders-dash-merged-intro.wallet-pnl-pnl-trading-lede {
@@ -3633,6 +3730,9 @@ td .mono {
 
 .token-trade-tier-dash__legend-col {
   min-width: 0;
+  max-width: 350px;
+  justify-self: end;
+  width: 100%;
 }
 
 .token-supply-wrap--trade-tier-pie {
@@ -3848,6 +3948,9 @@ td .mono {
 }
 
 .token-tier-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -3857,6 +3960,23 @@ td .mono {
   padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   line-height: 1.25;
+}
+
+.token-tier-card__title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.token-tier-card__title-icon__svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.token-tier-card__title-text {
+  min-width: 0;
 }
 
 .token-tier-card__metrics {
@@ -4223,7 +4343,6 @@ td .mono {
   color: #fb923c;
   border-color: rgba(251, 146, 60, 0.3);
   background: rgba(251, 146, 60, 0.12);
-  min-width: calc(4.85rem * 2 + 0.15rem);
 }
 
 .holders-category-col {
