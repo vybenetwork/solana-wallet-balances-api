@@ -852,16 +852,21 @@ function formatBandTotalUsd(n) {
   return `$${formatRoundedValue(num)}`;
 }
 
+function formatTokenCountWord(count) {
+  return Number(count) === 1 ? 'token' : 'tokens';
+}
+
 function renderUsdBarRow(d, i, count, total, maxC, sumUsd) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   const w = Math.min(100, (count / maxC) * 100);
   const color = walletUsdBandColor(i);
   const safe = escapeHtmlText(d.label);
   const totalLabel = formatBandTotalUsd(sumUsd);
+  const tokenWord = formatTokenCountWord(count);
   return `<div class="holders-hbar-row">
     <span class="holders-hbar-name" title="${safe}">${safe}</span>
     <div class="holders-hbar-track"><div class="holders-hbar-fill" style="width:${w}%;background:${color}"></div></div>
-    <span class="holders-hbar-meta">${formatPctSmart(pct)} <span class="holders-value-usd" style="color:${escapeHtmlAttr(color)}">${count.toLocaleString()} token(s) (Total: ${escapeHtmlText(totalLabel)})</span></span>
+    <span class="holders-hbar-meta">${formatPctSmart(pct)} <span class="holders-value-usd" style="color:${escapeHtmlAttr(color)}">${count.toLocaleString()} ${tokenWord} (Total: ${escapeHtmlText(totalLabel)})</span></span>
   </div>`;
 }
 
