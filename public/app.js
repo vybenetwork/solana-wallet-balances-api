@@ -60,12 +60,15 @@ const errorText = document.getElementById('errorText');
 let lastTokens = [];
 const TOP_LOGO_REPAIR_N = 20;
 const TOKEN_LOGO_PLACEHOLDER = '/token-placeholder.png';
+const LOGO_IMG_TIMEOUT_MS = 12_000;
+const LOGO_REPAIR_TIMEOUT_MS = 15_000;
 const logoLoadingMints = new Set();
 const logoRepairInFlight = new Set();
 const logoFailedMints = new Set();
 const logoRepairAttemptedMints = new Set();
 const logoPendingRepairMints = new Set();
 const logoImageLoadedMints = new Set();
+const logoImgTimeouts = new Map();
 
 function escapeHtmlText(s) {
   return String(s)
@@ -455,12 +458,49 @@ function iconUrl(item) {
   return `/${u.replace(/^\//, '')}`;
 }
 
-function isTopLogoRepairCandidate(mint) {
-  const sorted = [...lastTokens].sort((a, b) => toNum(b.valueUsd) - toNum(a.valueUsd));
-  return sorted.slice(0, TOP_LOGO_REPAIR_N).some((t) => t.mintAddress === mint);
+function clearLogoLoadTimeout(mint) {
+  const id = logoImgTimeouts.get(mint);
+  if (id != null) {
+    clearTimeout(id);
+    logoImgTimeouts.delete(mint);
+  }
+}
+
+function clearAllLogoLoadTimeouts() {
+  for (const id of logoImgTimeouts.values()) clearTimeout(id);
+  logoImgTimeouts.clear();
+}
+
+function failTokenLogo(mint) {
+  clearLogoLoadTimeout(mint);
+  logoFailedMints.add(mint);
+  logoLoadingMints.delete(mint);
+  logoPendingRepairMints.delete(mint);
+  updateTableAfterLogoChange();
+}
+
+function armLogoLoadTimeout(mint) {
+  clearLogoLoadTimeout(mint);
+  const id = setTimeout(() => handleLogoLoadTimeout(mint), LOGO_IMG_TIMEOUT_MS);
+  logoImgTimeouts.set(mint, id);
+}
+
+function handleLogoLoadTimeout(mint) {
+  logoImgTimeouts.delete(mint);
+  if (logoFailedMints.has(mint) || logoImageLoadedMints.has(mint)) return;
+  if (logoRepairInFlight.has(mint)) {
+    armLogoLoadTimeout(mint);
+    return;
+  }
+  if (!logoRepairAttemptedMints.has(mint)) {
+    repairTokenLogo(mint, { force: true });
+    return;
+  }
+  failTokenLogo(mint);
 }
 
 function handleTokenIconLoad(mint, imgEl) {
+  clearLogoLoadTimeout(mint);
   logoImageLoadedMints.add(mint);
   if (imgEl) {
     imgEl.classList.remove('token-logo--img-loading');
@@ -472,6 +512,7 @@ function handleTokenIconLoad(mint, imgEl) {
 }
 
 function handleTokenIconError(mint, imgEl) {
+  clearLogoLoadTimeout(mint);
   logoImageLoadedMints.delete(mint);
   if (imgEl) {
     imgEl.classList.add('token-logo--img-loading');
@@ -481,13 +522,12 @@ function handleTokenIconError(mint, imgEl) {
     updateTableAfterLogoChange();
     return;
   }
-  if (!isTopLogoRepairCandidate(mint) || logoRepairAttemptedMints.has(mint)) {
-    logoFailedMints.add(mint);
-    updateTableAfterLogoChange();
+  if (logoRepairInFlight.has(mint)) return;
+  if (!logoRepairAttemptedMints.has(mint)) {
+    repairTokenLogo(mint, { force: true });
     return;
   }
-  if (logoRepairInFlight.has(mint)) return;
-  repairTokenLogo(mint, { force: true });
+  failTokenLogo(mint);
 }
 
 function tokenLogoPlaceholderHtml() {
@@ -516,14 +556,19 @@ function tokenIconHtml(t) {
   const mintAttr = escapeHtmlAttr(mint);
   const showSpinner = tokenIconShowsSpinner(t);
 
-  if (!icon && !showSpinner) return '';
+  if (!icon) {
+    if (showSpinner) {
+      armLogoLoadTimeout(mint);
+      return `<span class="token-logo-slot">${tokenLogoSpinnerHtml()}</span>`;
+    }
+    return `<span class="token-logo-slot">${tokenLogoPlaceholderHtml()}</span>`;
+  }
 
   let inner = '';
   if (showSpinner) inner += tokenLogoSpinnerHtml();
-  if (icon) {
-    const loaded = logoImageLoadedMints.has(mint);
-    inner += `<img class="token-logo${loaded ? '' : ' token-logo--img-loading'}" src="${escapeHtmlAttr(icon)}" alt="" loading="lazy" style="${loaded ? '' : 'opacity:0'}" onload="window.__walletBalancesIconLoad?.('${mintAttr}', this)" onerror="window.__walletBalancesIconError?.('${mintAttr}', this)">`;
-  }
+  const loaded = logoImageLoadedMints.has(mint);
+  inner += `<img class="token-logo${loaded ? '' : ' token-logo--img-loading'}" src="${escapeHtmlAttr(icon)}" alt="" loading="lazy" style="${loaded ? '' : 'opacity:0'}" onload="window.__walletBalancesIconLoad?.('${mintAttr}', this)" onerror="window.__walletBalancesIconError?.('${mintAttr}', this)">`;
+  if (!loaded) armLogoLoadTimeout(mint);
   return `<span class="token-logo-slot">${inner}</span>`;
 }
 
@@ -534,11 +579,19 @@ function updateTableAfterLogoChange() {
 
 async function fetchRepairedLogo(mint, force) {
   const url = `/api/token/${encodeURIComponent(mint)}/logo?force=${force ? '1' : '0'}`;
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const logo = data.logoUrl?.trim();
-  return logo || null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOGO_REPAIR_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const logo = data.logoUrl?.trim();
+    return logo || null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function repairTokenLogo(mint, options = {}) {
@@ -1257,6 +1310,7 @@ async function fetchBalances() {
   logoLoadingMints.clear();
   logoRepairInFlight.clear();
   logoImageLoadedMints.clear();
+  clearAllLogoLoadTimeouts();
 
   try {
     const limit = limitSelect.value || '100';
