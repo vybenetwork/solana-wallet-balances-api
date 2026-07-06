@@ -185,9 +185,9 @@
               <span class="field-icon icon-hash" aria-hidden="true"></span>
               <select id="limit">
                 <option value="50">50</option>
-                <option value="100">100</option>
+                <option value="100" selected>100</option>
                 <option value="250">250</option>
-                <option value="500" selected>500</option>
+                <option value="500">500</option>
               </select>
             </div>
           </div>
@@ -331,6 +331,7 @@
           <span class="section-error" id="walletPnlError" hidden aria-hidden="true"></span>
         </div>
         <div id="holdingsStatsContent" class="wallet-stats-panel">
+          <div class="section-lede meta" id="holdingsStatsMeta">Load a wallet to see portfolio profitability and USD value band charts.</div>
           <div class="token-supply-grid token-supply-grid--trade-count-pie-row token-supply-grid--section-gap">
             <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash token-supply-card--holders-dashboard-merged">
               <div class="wallet-charts-row">
@@ -370,7 +371,7 @@
           </div>
         </div>
         <div id="pnlStatsContent" class="wallet-stats-panel top-traders-content" hidden>
-          <div class="section-lede meta" id="walletPnlMeta">—</div>
+          <div class="section-lede meta" id="walletPnlMeta">Load a wallet with 7d PnL enabled to see wallet profile, open vs closed positions, winning vs losing trades, and seven-day PnL trend.</div>
           <div class="wallet-pnl-details" id="walletPnlDetails"></div>
         </div>
       </section>
@@ -407,7 +408,7 @@
           <span class="section-error" id="holdersError" hidden aria-hidden="true"></span>
         </div>
         <div class="holders-content" id="holdersContentWrap">
-          <div class="section-lede meta" id="holdersMeta"></div>
+          <div class="section-lede meta" id="holdersMeta">Load a wallet to see token balances ranked by USD value, with 1d/7d price change, market cap, and data source.</div>
           <div class="holders-summary-grid" id="holdersSummary" aria-live="polite">
             <div class="trades-summary-item trades-summary-item--count">
               <span class="trades-summary-label"><span class="trades-summary-label-icon field-icon icon-pages" aria-hidden="true"></span>Tokens loaded</span>
@@ -497,8 +498,8 @@
       </section>
     </div>
     <script src="charts-pie.js?v=2"></script>
-    <script src="wallet-pnl-section.js?v=4"></script>
+    <script src="wallet-pnl-section.js?v=5"></script>
     <script src="wallet-pnl-table.js?v=3"></script>
-    <script src="app.js?v=103"></script>
+    <script src="app.js?v=105"></script>
   </body>
 </html>

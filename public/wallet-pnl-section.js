@@ -54,6 +54,7 @@ const TIER_LEGEND_SVG_VOLUME = '<svg class="token-tier-metric__svg" viewBox="0 0
 const FALLBACK_LOGO_URL = '/token-placeholder.png';
 /** CoinMarketCap generic icon for pump.fun–style tokens when the API supplies no logo. */
 const PUMP_MINT_FALLBACK_LOGO_URL = 'https://s2.coinmarketcap.com/static/img/coins/64x64/36507.png';
+const WALLET_PNL_META_PLACEHOLDER = 'Load a wallet with 7d PnL enabled to see wallet profile, open vs closed positions, winning vs losing trades, and seven-day PnL trend.';
 const WALLET_PNL_TREND_LEDE = 'Each row is a snapshot of cumulative realized PnL through that moment. See whether the wallet was building gains, giving them back, or chopping sideways across the last seven days.';
 /** Shapes placeholder wallet PnL to match loaded layout (stable column heights). */
 const WALLET_PNL_PLACEHOLDER_ASSET_ROW_COUNT = 12;
@@ -1150,7 +1151,7 @@ function renderWalletPnl(ownerAddress, data, queryParams, topTraderRow) {
 
 function resetWalletPnlPlaceholder() {
   if (!walletPnlDetailsEl) return;
-  if (walletPnlMetaEl) walletPnlMetaEl.textContent = '—';
+  if (walletPnlMetaEl) walletPnlMetaEl.textContent = WALLET_PNL_META_PLACEHOLDER;
   walletPnlDetailsEl.innerHTML = buildWalletPnlPlaceholder();
   mountWalletPieDonutOverlays(walletPnlDetailsEl, [{ slices: [] }, { slices: [] }]);
   requestAnimationFrame(() => syncWalletPieStackHeights());

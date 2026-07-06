@@ -40,6 +40,7 @@ const walletSummaryStats = document.getElementById('walletSummaryStats');
 const walletStatsSection = document.getElementById('walletStatsSection');
 const walletStatsSectionTitle = document.getElementById('walletStatsSectionTitle');
 const holdingsStatsContent = document.getElementById('holdingsStatsContent');
+const holdingsStatsMeta = document.getElementById('holdingsStatsMeta');
 const pnlStatsContent = document.getElementById('pnlStatsContent');
 const walletStatsViewSwitch = document.getElementById('walletStatsViewSwitch');
 const portfolioPie = document.getElementById('portfolioPie');
@@ -1218,6 +1219,9 @@ function setChartsPlaceholder() {
   holdingsUsdBars.innerHTML = renderUsdBarsPlaceholderHtml();
   portfolioPieLede.textContent = 'Load a wallet to see price change breakdown.';
   portfolioPieInsight.textContent = 'Profitable, even, losing, or dead tokens (1d/7d).';
+  if (holdingsStatsMeta) {
+    holdingsStatsMeta.textContent = 'Load a wallet to see portfolio profitability and USD value band charts.';
+  }
 }
 
 function renderCharts(tokens, wallet, totalUsd) {
@@ -1247,6 +1251,10 @@ function renderCharts(tokens, wallet, totalUsd) {
   portfolioPieTitle.textContent = 'Tokens ranked by profitability';
   portfolioPieLede.textContent = `${tokens.length} tokens · ${formatUsd(totalUsd)} estimated portfolio value`;
   portfolioPieInsight.textContent = buildPriceChangePieInsight(bucket, tokens.length);
+
+  if (holdingsStatsMeta) {
+    holdingsStatsMeta.textContent = `Wallet holdings: ${tokens.length} token(s) · profitability pie and USD value bands.`;
+  }
 
   renderUsdBars(tokens);
 }
@@ -1459,7 +1467,7 @@ async function fetchBalances() {
     renderCharts(lastTokens, wallet, totalUsd);
     renderTable(lastTokens, totalUsd);
 
-    holdersMeta.textContent = `${lastTokens.length} tokens · RPC amounts + Vybe merge · Vybe token-details for category, supply, volume, and 1d/7d price change.`;
+    holdersMeta.textContent = formatHoldersMetaLoadedText(lastTokens.length);
 
     queueTopLogoRepairs(lastTokens);
 
@@ -1468,6 +1476,9 @@ async function fetchBalances() {
     } else {
       window.WalletPnlSection?.resetPlaceholder?.();
       window.WalletPnlTable?.resetPlaceholder?.();
+    }
+    if (holdersTableViewSwitch?.checked) {
+      updateHoldersSectionMeta('pnl');
     }
   } catch (err) {
     showError(err instanceof Error ? err.message : String(err));
@@ -1481,6 +1492,7 @@ async function fetchBalances() {
 setChartsPlaceholder();
 renderWalletSummaryPlaceholder();
 renderHoldersTablePlaceholder();
+updateHoldersSectionMeta('holdings');
 hydrateHoldersSummaryLabelIcons();
 initLogoRepairSettings();
 initWalletPnlIntegration();
@@ -1492,6 +1504,31 @@ walletInput.addEventListener('keydown', (e) => {
 window.__walletBalancesIconError = handleTokenIconError;
 window.__walletBalancesIconLoad = handleTokenIconLoad;
 
+const HOLDERS_META_PLACEHOLDER = 'Load a wallet to see token balances ranked by USD value, with 1d/7d price change, market cap, and data source.';
+const HOLDERS_PNL_META_PLACEHOLDER = 'Load a wallet with 7d PnL enabled to see per-token realized and unrealized PnL, buys/sells, and volumes.';
+
+function formatHoldersMetaLoadedText(tokensCount) {
+  return `${tokensCount} tokens · RPC amounts + Vybe merge · Vybe token-details for category, supply, volume, and 1d/7d price change.`;
+}
+
+function formatHoldersPnlMetaLoadedText(metricsCount) {
+  return `Wallet PnL: ${metricsCount} per-token row(s) for the 7d window.`;
+}
+
+function updateHoldersSectionMeta(view = holdersTableViewSwitch?.checked ? 'pnl' : 'holdings') {
+  if (!holdersMeta) return;
+  if (view === 'pnl') {
+    const metrics = window.WalletPnlSection?.getLastTokenMetrics?.() ?? [];
+    holdersMeta.textContent = metrics.length
+      ? formatHoldersPnlMetaLoadedText(metrics.length)
+      : HOLDERS_PNL_META_PLACEHOLDER;
+    return;
+  }
+  holdersMeta.textContent = lastTokens.length
+    ? formatHoldersMetaLoadedText(lastTokens.length)
+    : HOLDERS_META_PLACEHOLDER;
+}
+
 function setHoldersTableView(mode) {
   const showPnl = mode === 'pnl';
   if (holdersTableViewSwitch) holdersTableViewSwitch.checked = showPnl;
@@ -1501,6 +1538,7 @@ function setHoldersTableView(mode) {
   if (holdersSectionTitle) {
     holdersSectionTitle.textContent = showPnl ? 'Wallet PnL (7d)' : 'Token Holdings';
   }
+  updateHoldersSectionMeta(mode);
   if (showPnl && window.WalletPnlTable) {
     window.WalletPnlTable.onMetricsUpdated();
   }
