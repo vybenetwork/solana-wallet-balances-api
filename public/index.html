@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#0f0f12" />
     <link rel="canonical" href="https://solana-wallet-balances-api.vybenetwork.com/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="app.css?v=103" />
+    <link rel="stylesheet" href="app.css?v=105" />
   </head>
   <body>
     <div class="container">
@@ -299,67 +299,73 @@
         </div>
       </section>
 
-      <section class="section-card section-card--traders top-traders-section panel" id="relatedWalletsSection">
-        <div class="section-header">
+      <section class="section-card section-card--chart panel token-supply-panel" id="walletStatsSection" hidden>
+        <div class="section-header token-supply-period-header">
           <div class="section-header-left">
             <span class="section-header__marker" aria-hidden="true"></span>
-            <h2 class="section-header__title" id="relatedWalletsTitle">Related Wallets (By Realized PnL, 7d)</h2>
+            <h2 class="section-header__title token-supply-period-title" id="walletStatsSectionTitle">Holdings Stats</h2>
             <div class="section-loading" id="walletPnlLoading" hidden aria-hidden="true">
               <span class="loading-spinner"></span>
               <span class="loading-text">Loading…</span>
             </div>
           </div>
+          <div class="section-header-right">
+            <label
+              class="trades-fetch-switch wallet-stats-view-switch"
+              id="walletStatsViewSwitchLabel"
+              title="Switch between holdings charts and 7d wallet PnL stats"
+            >
+              <input type="checkbox" id="walletStatsViewSwitch" class="trades-fetch-switch-input" checked />
+              <span class="trades-fetch-switch-track">
+                <span class="trades-fetch-switch-option" data-value="pnl">PnL Stats</span>
+                <span class="trades-fetch-switch-option" data-value="holdings">Holdings Stats</span>
+              </span>
+            </label>
+          </div>
           <span class="section-error" id="walletPnlError" hidden aria-hidden="true"></span>
         </div>
-        <div class="top-traders-content" id="relatedWalletsContentWrap">
-          <div class="section-lede meta" id="walletPnlMeta">—</div>
-          <div class="wallet-pnl-details" id="walletPnlDetails"></div>
-        </div>
-      </section>
-
-      <section class="section-card section-card--chart panel token-supply-panel" id="chartsPanel" hidden>
-        <div class="section-header token-supply-period-header">
-          <div class="section-header-left">
-            <span class="section-header__marker" aria-hidden="true"></span>
-            <h2 class="section-header__title token-supply-period-title">Portfolio Charts</h2>
-          </div>
-        </div>
-        <div class="token-supply-grid token-supply-grid--trade-count-pie-row token-supply-grid--section-gap">
-          <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash token-supply-card--holders-dashboard-merged">
-            <div class="wallet-charts-row">
-            <section class="holders-dash-section holders-dash-section--volume-pie wallet-charts-row__col wallet-charts-row__col--portfolio">
-              <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash holders-dash-nested-supply-pie">
-                <header class="token-trade-tier-dash__top">
-                  <div class="token-trade-tier-dash__titles">
-                    <h2 class="token-stats-group-title" id="portfolioPieTitle">Tokens ranked by profitability</h2>
-                    <p class="token-trade-tier-dash__lede wallet-pnl-pnl-trading-lede" id="portfolioPieLede">—</p>
-                  </div>
-                  <aside class="token-trade-tier-dash__insight" aria-label="Portfolio insight">
-                    <span class="token-trade-tier-dash__insight-bulb" aria-hidden="true">💡</span>
-                    <p class="token-trade-tier-dash__insight-text wallet-pnl-pnl-trading-lede" id="portfolioPieInsight">—</p>
-                  </aside>
-                </header>
-                <div class="token-trade-tier-dash__main">
-                  <div class="token-trade-tier-dash__chart-col">
-                    <div class="token-supply-wrap token-supply-wrap--trade-tier-pie">
-                      <div class="token-supply-pie token-supply-pie--donut-labels" id="portfolioPie" aria-label="Portfolio pie chart"></div>
+        <div id="holdingsStatsContent" class="wallet-stats-panel">
+          <div class="token-supply-grid token-supply-grid--trade-count-pie-row token-supply-grid--section-gap">
+            <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash token-supply-card--holders-dashboard-merged">
+              <div class="wallet-charts-row">
+              <section class="holders-dash-section holders-dash-section--volume-pie wallet-charts-row__col wallet-charts-row__col--portfolio">
+                <div class="token-supply-card token-supply-card--fullwidth token-supply-card--trade-tier-dash holders-dash-nested-supply-pie">
+                  <header class="token-trade-tier-dash__top">
+                    <div class="token-trade-tier-dash__titles">
+                      <h2 class="token-stats-group-title" id="portfolioPieTitle">Tokens ranked by profitability</h2>
+                      <p class="token-trade-tier-dash__lede wallet-pnl-pnl-trading-lede" id="portfolioPieLede">—</p>
+                    </div>
+                    <aside class="token-trade-tier-dash__insight" aria-label="Portfolio insight">
+                      <span class="token-trade-tier-dash__insight-bulb" aria-hidden="true">💡</span>
+                      <p class="token-trade-tier-dash__insight-text wallet-pnl-pnl-trading-lede" id="portfolioPieInsight">—</p>
+                    </aside>
+                  </header>
+                  <div class="token-trade-tier-dash__main">
+                    <div class="token-trade-tier-dash__chart-col">
+                      <div class="token-supply-wrap token-supply-wrap--trade-tier-pie">
+                        <div class="token-supply-pie token-supply-pie--donut-labels" id="portfolioPie" aria-label="Portfolio pie chart"></div>
+                      </div>
+                    </div>
+                    <div class="token-trade-tier-dash__legend-col">
+                      <div class="token-supply-legend token-supply-legend--compact-grid token-supply-legend--tier-dashboard" id="portfolioLegend"></div>
                     </div>
                   </div>
-                  <div class="token-trade-tier-dash__legend-col">
-                    <div class="token-supply-legend token-supply-legend--compact-grid token-supply-legend--tier-dashboard" id="portfolioLegend"></div>
-                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            <section class="holders-dash-section wallet-charts-row__col wallet-charts-row__col--usd-bands">
-              <div class="holders-dash-cohort-stack-block">
-                <h3 class="token-stats-group-title token-trade-tier-dash__chart-title">Holdings By USD Value Band</h3>
-                <div class="holders-hbar-list wallet-usd-hbar-list" id="holdingsUsdBars" aria-label="Holdings by USD band"></div>
+              <section class="holders-dash-section wallet-charts-row__col wallet-charts-row__col--usd-bands">
+                <div class="holders-dash-cohort-stack-block">
+                  <h3 class="token-stats-group-title token-trade-tier-dash__chart-title">Holdings By USD Value Band</h3>
+                  <div class="holders-hbar-list wallet-usd-hbar-list" id="holdingsUsdBars" aria-label="Holdings by USD band"></div>
+                </div>
+              </section>
               </div>
-            </section>
             </div>
           </div>
+        </div>
+        <div id="pnlStatsContent" class="wallet-stats-panel top-traders-content" hidden>
+          <div class="section-lede meta" id="walletPnlMeta">—</div>
+          <div class="wallet-pnl-details" id="walletPnlDetails"></div>
         </div>
       </section>
 
@@ -481,6 +487,6 @@
     <script src="charts-pie.js?v=2"></script>
     <script src="wallet-pnl-section.js?v=4"></script>
     <script src="wallet-pnl-table.js?v=2"></script>
-    <script src="app.js?v=98"></script>
+    <script src="app.js?v=99"></script>
   </body>
 </html>

@@ -1863,7 +1863,7 @@ button:not(.vybe-action-btn):disabled {
 #walletSummarySection .section-header {
   gap: 0.5rem 0.75rem;
   padding-bottom: 0.65rem;
-  margin-bottom: 0.15rem;
+  margin-bottom: -0.9rem;
 }
 
 #walletSummarySection .wallet-summary-intro-row {
@@ -5812,6 +5812,14 @@ html {
 }
 
 .holders-table-view-switch.trades-fetch-switch {
+  min-width: fit-content;
+}
+
+#walletStatsSection .section-header {
+  justify-content: flex-start;
+}
+
+.wallet-stats-view-switch.trades-fetch-switch {
   min-width: fit-content;
 }
 

@@ -37,7 +37,11 @@ const loadingIndicator = document.getElementById('loadingIndicator');
 const walletSummaryLabel = document.getElementById('walletSummaryLabel');
 const walletLastUpdatedValue = document.getElementById('walletLastUpdatedValue');
 const walletSummaryStats = document.getElementById('walletSummaryStats');
-const chartsPanel = document.getElementById('chartsPanel');
+const walletStatsSection = document.getElementById('walletStatsSection');
+const walletStatsSectionTitle = document.getElementById('walletStatsSectionTitle');
+const holdingsStatsContent = document.getElementById('holdingsStatsContent');
+const pnlStatsContent = document.getElementById('pnlStatsContent');
+const walletStatsViewSwitch = document.getElementById('walletStatsViewSwitch');
 const portfolioPie = document.getElementById('portfolioPie');
 const portfolioLegend = document.getElementById('portfolioLegend');
 const portfolioPieTitle = document.getElementById('portfolioPieTitle');
@@ -1193,8 +1197,17 @@ function buildPriceChangePieInsight(bucket, totalTokens) {
   return `${formatPctSmart(bucket.slices[topIdx])} of tokens are ${labels[topKey]}.`;
 }
 
+function setWalletStatsView(mode) {
+  const showHoldings = mode === 'holdings';
+  if (holdingsStatsContent) holdingsStatsContent.hidden = !showHoldings;
+  if (pnlStatsContent) pnlStatsContent.hidden = showHoldings;
+  if (walletStatsSectionTitle) {
+    walletStatsSectionTitle.textContent = showHoldings ? 'Holdings Stats' : 'PnL Stats (7 days)';
+  }
+}
+
 function setChartsPlaceholder() {
-  chartsPanel.hidden = false;
+  walletStatsSection.hidden = false;
   const empty4 = buildPieGradientWithGaps([0, 0, 0, 0], PRICE_CHANGE_PIE_HEX);
   portfolioPie.style.background = empty4;
   mountDonutPieOverlays(portfolioPie, [0, 0, 0, 0], PRICE_CHANGE_PIE_HEX, { mock: true, hubSubline: '—' });
@@ -1208,7 +1221,7 @@ function setChartsPlaceholder() {
 }
 
 function renderCharts(tokens, wallet, totalUsd) {
-  chartsPanel.hidden = false;
+  walletStatsSection.hidden = false;
   const bucket = priceChange24hBuckets(tokens);
   const display = applyMinVisibleSlices(bucket.slices);
   portfolioPie.style.background = buildPieGradientWithGaps(display, PRICE_CHANGE_PIE_HEX);
@@ -1483,8 +1496,12 @@ function initWalletPnlIntegration() {
     });
   }
   setHoldersTableView('holdings');
+  setWalletStatsView('holdings');
   holdersTableViewSwitch?.addEventListener('change', () => {
     setHoldersTableView(holdersTableViewSwitch.checked ? 'pnl' : 'holdings');
+  });
+  walletStatsViewSwitch?.addEventListener('change', () => {
+    setWalletStatsView(walletStatsViewSwitch.checked ? 'holdings' : 'pnl');
   });
 }
 
