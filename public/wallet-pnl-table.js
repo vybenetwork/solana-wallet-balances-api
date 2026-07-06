@@ -20,7 +20,7 @@ const FALLBACK_LOGO_URL = '/token-placeholder.png';
 const PUMP_MINT_FALLBACK_LOGO_URL = 'https://s2.coinmarketcap.com/static/img/coins/64x64/36507.png';
 const WALLET_PNL_TREND_LEDE = 'Each row is a snapshot of cumulative realized PnL through that moment. See whether the wallet was building gains, giving them back, or chopping sideways across the last seven days.';
 /** Shapes placeholder wallet PnL to match loaded layout (stable column heights). */
-const WALLET_PNL_PLACEHOLDER_ASSET_ROW_COUNT = 12;
+const WALLET_PNL_PLACEHOLDER_ASSET_ROW_COUNT = 16;
 const TOKEN_TOP_PNL_PLACEHOLDER_ROW_COUNT = 12;
 function buildTokenTopPnlPlaceholderRowsHtml() {
     const row = '<tr><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="token-top-pnl-24h-col">—</td><td>—</td><td class="token-top-pnl-24h-col">—</td></tr>';
@@ -574,7 +574,7 @@ function renderWalletPnlAssetsTable(tokenMetrics) {
   const sellsTxMax = sellsTxValues.length ? Math.max(...sellsTxValues) : 0;
   const gainColorBounds = collectWalletGainColorBounds(metrics);
   if (!metrics.length) {
-    return buildWalletPnlAssetsPlaceholderRows(8);
+    return buildWalletPnlAssetsPlaceholderRows(WALLET_PNL_PLACEHOLDER_ASSET_ROW_COUNT);
   }
   return metrics.map((metric) => {
     const mint = metric.mintAddress || '';
@@ -622,7 +622,7 @@ window.WalletPnlTable = {
   },
   resetPlaceholder() {
     if (walletPnlAssetsBodyEl) {
-      walletPnlAssetsBodyEl.innerHTML = buildWalletPnlAssetsPlaceholderRows(8);
+      walletPnlAssetsBodyEl.innerHTML = buildWalletPnlAssetsPlaceholderRows(WALLET_PNL_PLACEHOLDER_ASSET_ROW_COUNT);
     }
   },
 };

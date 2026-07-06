@@ -1361,6 +1361,31 @@ function formatMintCellHtml(mint) {
   return `<a class="holders-mint-link" href="${escapeHtmlAttr(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtmlAttr(addr)}">${escapeHtmlText(label)}${HOLDERS_EXTERNAL_LINK_SVG}</a>`;
 }
 
+const HOLDERS_PLACEHOLDER_ROW_COUNT = 16;
+
+function buildHoldersPlaceholderRows(count = HOLDERS_PLACEHOLDER_ROW_COUNT) {
+  const dash = '—';
+  const logo = tokenLogoPlaceholderHtml();
+  return Array.from({ length: count }, (_, i) => `<tr class="holders-row holders-row--placeholder">
+    <td class="holders-rank-col"><div class="holders-rank-cell"><span class="holders-rank-num">${i + 1}</span></div></td>
+    <td class="holders-change-col">${dash}</td>
+    <td><div class="token-header"><span class="token-logo-slot">${logo}</span><div class="token-header-text"><div class="symbol">${dash}</div><div class="name">${dash}</div></div></div></td>
+    <td class="num holders-portfolio-col">${dash}</td>
+    <td class="holders-value-usd num">${dash}</td>
+    <td class="num holders-amount-col">${dash}</td>
+    <td class="num holders-price-col">${dash}</td>
+    <td class="num holders-mcap-supply-col">${dash}</td>
+    <td class="num holders-vol-col">${dash}</td>
+    <td class="holders-price-source-col">${dash}</td>
+    <td class="meta holders-mint-col">${dash}</td>
+  </tr>`).join('');
+}
+
+function renderHoldersTablePlaceholder() {
+  if (!holdersBody) return;
+  holdersBody.innerHTML = buildHoldersPlaceholderRows();
+}
+
 function renderTable(tokens, totalUsd) {
   updateHoldersSummaryStrip(tokens);
   const sorted = [...tokens].sort((a, b) => toNum(b.valueUsd) - toNum(a.valueUsd));
@@ -1455,6 +1480,7 @@ async function fetchBalances() {
 
 setChartsPlaceholder();
 renderWalletSummaryPlaceholder();
+renderHoldersTablePlaceholder();
 hydrateHoldersSummaryLabelIcons();
 initLogoRepairSettings();
 initWalletPnlIntegration();
@@ -1501,9 +1527,6 @@ function initWalletPnlIntegration() {
     setHoldersTableView(holdersTableViewSwitch.checked ? 'pnl' : 'holdings');
   });
   walletStatsViewSwitch?.addEventListener('change', () => {
-    setWalletStatsView(walletStatsViewSwitch.checked ? 'holdings' : 'pnl');
+    setWalletStatsView(walletStatsViewSwitch.checked ? 'pnl' : 'holdings');
   });
 }
-
-// Auto-load demo wallet on first visit
-fetchBalances();

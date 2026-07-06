@@ -1522,12 +1522,9 @@ body {
 }
 
 .holders-table-view-switch .trades-fetch-switch-input:not(:checked) + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="single"],
-.holders-table-view-switch .trades-fetch-switch-input:checked + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="paged"] {
-  color: #ffffff;
-}
-
-.wallet-stats-view-switch .trades-fetch-switch-input:not(:checked) + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="pnl"],
-.wallet-stats-view-switch .trades-fetch-switch-input:checked + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="holdings"] {
+.holders-table-view-switch .trades-fetch-switch-input:checked + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="paged"],
+.wallet-stats-view-switch .trades-fetch-switch-input:not(:checked) + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="single"],
+.wallet-stats-view-switch .trades-fetch-switch-input:checked + .trades-fetch-switch-track .trades-fetch-switch-option[data-value="paged"] {
   color: #ffffff;
 }
 
@@ -2854,6 +2851,10 @@ button:not(.vybe-action-btn):disabled {
   min-width: 9.1rem;
   width: 9.1rem;
   max-width: 9.1rem;
+}
+
+#holdersTable tbody tr.holders-row--placeholder {
+  opacity: 0.72;
 }
 
 #holdersTable tbody tr.holders-row--profitable {
@@ -5856,6 +5857,11 @@ html {
 
 .wallet-stats-view-switch .trades-fetch-switch-track {
   height: 2.2rem;
+  min-width: 17rem;
+}
+
+.wallet-stats-view-switch .trades-fetch-switch-option {
+  white-space: nowrap;
 }
 
 #walletStatsSection .section-header {
