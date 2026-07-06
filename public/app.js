@@ -753,12 +753,8 @@ function buildWalletSummarySections(data) {
     icon: WALLET_SECTION_ICONS.overview,
     title: 'Overview',
     theme: 'overview',
+    rowsLayout: '2col',
     rows: [
-      {
-        key: 'mint',
-        label: 'Wallet',
-        valueHtml: `<span class="mono">${escapeHtmlText(data.wallet)}</span>`,
-      },
       {
         key: 'category',
         label: 'Tokens loaded',
@@ -767,11 +763,15 @@ function buildWalletSummarySections(data) {
       },
       {
         key: 'verified',
-        label: 'Verified tokens',
+        label: 'Verified',
         valueHtml:
-          data.verified == null
-            ? escapeHtmlText('—')
-            : escapeHtmlText(`${data.verified} verified · ${data.unverified ?? 0} unverified`),
+          data.verified == null ? escapeHtmlText('—') : escapeHtmlText(String(data.verified)),
+      },
+      {
+        key: 'price1d',
+        label: 'Unverified',
+        valueHtml:
+          data.unverified == null ? escapeHtmlText('—') : escapeHtmlText(String(data.unverified)),
       },
       {
         key: 'decimals',
