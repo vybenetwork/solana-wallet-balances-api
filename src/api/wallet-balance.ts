@@ -79,10 +79,19 @@ export function vybeTokenBalanceMatchesZero7dHighValueMark(
   );
 }
 
-/** Unverified: missing/zero price, or high valueUsd + zero 7d — skip logo enrich. */
-export function isVybeSuspiciousHighValueMark(row: VybeTokenBalance): boolean {
+/** Unverified dust: exactly 1 token or 1.xxxxx (1 ≤ amount < 2). */
+export function walletBalanceHasSuspiciousUnitAmount(amountUi: number): boolean {
+  return Number.isFinite(amountUi) && amountUi >= 1 && amountUi < 2;
+}
+
+/** Unverified: missing/zero price, ~1 token amount, or high valueUsd + zero 7d — skip logo enrich. */
+export function isVybeSuspiciousHighValueMark(
+  row: VybeTokenBalance,
+  amountUi?: number,
+): boolean {
   if (row.verified === true) return false;
   if (vybeTokenBalanceHasMissingOrZeroPrice(row)) return true;
+  if (amountUi != null && walletBalanceHasSuspiciousUnitAmount(amountUi)) return true;
   return vybeTokenBalanceMatchesZero7dHighValueMark(row);
 }
 
@@ -93,6 +102,40 @@ export function countVybeVerifiedZero7dHighValueMarks(
   return rows.filter(
     (row) => row.verified === true && vybeTokenBalanceMatchesZero7dHighValueMark(row, minValueUsd),
   ).length;
+}
+
+/** Mirrors public/app.js shouldMaskSuspiciousValueUsd — strip bogus USD marks from API. */
+export function shouldMaskSuspiciousWalletUsdFields(item: WalletBalanceListItem): boolean {
+  if (item.skipLogoEnrich !== true) return false;
+  if (walletItemHasMissingOrZeroPrice(item)) return true;
+  if (walletBalanceHasSuspiciousUnitAmount(item.amountUi)) return true;
+  return Number.isFinite(item.valueUsd) && item.valueUsd > VYBE_SUSPICIOUS_VALUE_USD_MIN;
+}
+
+export function walletItemHasMissingOrZeroPrice(item: WalletBalanceListItem): boolean {
+  const raw = item.priceUsd;
+  if (raw == null) return true;
+  const n = Number(raw);
+  return !Number.isFinite(n) || n <= 0;
+}
+
+export function maskSuspiciousWalletBalanceItem(item: WalletBalanceListItem): WalletBalanceListItem {
+  if (!shouldMaskSuspiciousWalletUsdFields(item)) return item;
+  return {
+    ...item,
+    valueUsd: 0,
+    valueSol: undefined,
+    priceUsd: undefined,
+    price1d: undefined,
+    price7d: undefined,
+    priceChange1dPct: undefined,
+    priceChange7dPct: undefined,
+    priceSource: undefined,
+  };
+}
+
+function maskSuspiciousWalletBalanceList(items: WalletBalanceListItem[]): WalletBalanceListItem[] {
+  return items.map(maskSuspiciousWalletBalanceItem);
 }
 
 export interface GetWalletTokenBalanceParams {
@@ -574,18 +617,23 @@ async function enrichWalletItemMeta(
     valueSol = undefined;
   }
 
-  return attachPriceSource({
-    ...item,
-    symbol: meta.symbol?.trim() || item.symbol,
-    name: meta.name?.trim() || item.name,
-    logoUrl: meta.logoUrl?.trim() || item.logoUrl,
-    decimals: meta.decimals ?? item.decimals,
-    verified: meta.isVerified ?? item.verified,
-    valueUsd,
-    valueSol,
-    priceSource: meta.priceSource ?? resolved.source,
-    enrichmentPending: false,
-  });
+  return attachPriceSource(
+    mergeVybeFields(
+      {
+        ...item,
+        symbol: meta.symbol?.trim() || item.symbol,
+        name: meta.name?.trim() || item.name,
+        logoUrl: meta.logoUrl?.trim() || item.logoUrl,
+        decimals: meta.decimals ?? item.decimals,
+        verified: meta.isVerified ?? item.verified,
+        valueUsd,
+        valueSol,
+        priceSource: meta.priceSource ?? resolved.source,
+        enrichmentPending: false,
+      },
+      vybeFieldsFromMeta(meta),
+    ),
+  );
 }
 
 export async function enrichRpcOnlyWalletItem(
@@ -755,13 +803,12 @@ export async function mergeWalletBalancesFromRpcAndVybe(
   const skipLogoEnrichCount = balance.data.filter((row) => isVybeSuspiciousHighValueMark(row)).length;
   if (skipLogoEnrichCount > 0) {
     console.info(
-      `[wallet-balance] ${skipLogoEnrichCount} unverified token(s) with missing/zero price or valueUsd > $${VYBE_SUSPICIOUS_VALUE_USD_MIN} + zero 7d — skip logo enrich`,
+      `[wallet-balance] ${skipLogoEnrichCount} unverified token(s) with missing/zero price, ~1 token amount, or valueUsd > $${VYBE_SUSPICIOUS_VALUE_USD_MIN} + zero 7d — skip logo enrich`,
     );
   }
 
   const items = balance.data
     .map((row) => {
-      const skipLogoEnrich = isVybeSuspiciousHighValueMark(row);
       const vybeDecimals = Number(row.decimals);
       const mintAddress = row.mintAddress.trim();
       const amounts = resolveAmountFromRpc(
@@ -772,6 +819,7 @@ export async function mergeWalletBalancesFromRpcAndVybe(
         rpcOk,
       );
       if (!amounts) return null;
+      const skipLogoEnrich = isVybeSuspiciousHighValueMark(row, amounts.amountUi);
       const rawSymbol = row.symbol?.trim() ?? '';
       const rawName = row.name?.trim() ?? '';
       const symbol =
@@ -796,7 +844,7 @@ export async function mergeWalletBalancesFromRpcAndVybe(
         (valueUsd <= 0 ||
           !row.logoUrl?.trim() ||
           isMintLikeLabel(symbol, mintAddress));
-      const item: WalletBalanceListItem = {
+      const item: WalletBalanceListItem = maskSuspiciousWalletBalanceItem({
         mintAddress,
         symbol,
         name,
@@ -809,7 +857,7 @@ export async function mergeWalletBalancesFromRpcAndVybe(
         enrichmentPending,
         skipLogoEnrich: skipLogoEnrich || undefined,
         ...vybeFieldsFromWalletBalanceRow(row),
-      };
+      });
       return item;
     })
     .filter((row): row is WalletBalanceListItem => row !== null);
@@ -930,7 +978,7 @@ export async function streamWalletTokenBalances(
   const label = ownerAddress.trim().slice(0, 8);
   const { items, rpcOnlyToEnrich } = await mergeWalletBalancesFromRpcAndVybe(http, ownerAddress, limit);
   if (isCancelled?.()) return;
-  emit({ event: 'initial', tokens: items });
+  emit({ event: 'initial', tokens: maskSuspiciousWalletBalanceList(items) });
 
   if (enrichLimit > 0 || rpcOnlyToEnrich.length > 0) {
     let working = items;
@@ -945,7 +993,7 @@ export async function streamWalletTokenBalances(
       for (const item of working) {
         if (isCancelled?.()) return;
         if (metaEnrichMints.has(item.mintAddress)) {
-          emit({ event: 'update', token: item });
+          emit({ event: 'update', token: maskSuspiciousWalletBalanceItem(item) });
         }
       }
     }
@@ -955,7 +1003,7 @@ export async function streamWalletTokenBalances(
       for (const item of working) {
         if (isCancelled?.()) return;
         if (rpcMints.has(item.mintAddress)) {
-          emit({ event: 'update', token: item });
+          emit({ event: 'update', token: maskSuspiciousWalletBalanceItem(item) });
         }
       }
     }
@@ -975,13 +1023,13 @@ export async function listWalletTokenBalances(
   const label = ownerAddress.trim().slice(0, 8);
   const { items, rpcOnlyToEnrich } = await mergeWalletBalancesFromRpcAndVybe(http, ownerAddress, limit);
   let result = items.slice(0, limit);
-  if (!enrich) return result;
+  if (!enrich) return maskSuspiciousWalletBalanceList(result);
 
   result = await enrichWalletBalanceList(http, result, enrichLimit, label);
   if (rpcOnlyToEnrich.length > 0) {
     result = await enrichRpcOnlyTargets(http, result, rpcOnlyToEnrich, label);
   }
-  return sortWalletBalanceItems(result).slice(0, limit);
+  return maskSuspiciousWalletBalanceList(sortWalletBalanceItems(result).slice(0, limit));
 }
 
 export async function getWalletSolBalanceUi(

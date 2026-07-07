@@ -25,9 +25,8 @@ function hideWalletPnlError() {
   walletPnlErrorEl.textContent = '';
 }
 
-function setWalletPnlLoading(on) {
-  if (!walletPnlLoadingEl) return;
-  walletPnlLoadingEl.hidden = !on;
+function setWalletPnlLoading(_on) {
+  // PnL fetch uses locked section switchers instead of a header spinner.
 }
 
 function walletPnlTradingLedeInnerHtml() {

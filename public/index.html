@@ -169,7 +169,7 @@
               <input
                 type="text"
                 id="wallet"
-                value="BtMBMPkoNbnLF9Xn552guQq528KKXcsNBNNBre3oaQtr"
+                value="7Tar8QZTrRPwoGY5Ke9Vfwf6CmpBfekrNofERxgReza"
                 placeholder="Solana wallet address"
                 spellcheck="false"
               />
@@ -284,6 +284,10 @@
           <div class="section-header-left">
             <span class="section-header__marker" aria-hidden="true"></span>
             <h2 class="section-header__title">Wallet Summary</h2>
+            <div class="section-loading" id="walletSummaryLoading" hidden aria-hidden="true">
+              <span class="loading-spinner"></span>
+              <span class="loading-text">Loading…</span>
+            </div>
           </div>
         </div>
         <div class="token-section-content" id="walletSummaryContent">
@@ -306,6 +310,10 @@
           <div class="section-header-left">
             <span class="section-header__marker" aria-hidden="true"></span>
             <h2 class="section-header__title token-supply-period-title" id="walletStatsSectionTitle">Holdings Stats</h2>
+            <div class="section-loading" id="holdingsStatsLoading" hidden aria-hidden="true">
+              <span class="loading-spinner"></span>
+              <span class="loading-text">Loading…</span>
+            </div>
             <div class="section-loading" id="walletPnlLoading" hidden aria-hidden="true">
               <span class="loading-spinner"></span>
               <span class="loading-text">Loading…</span>
@@ -500,8 +508,8 @@
       </section>
     </div>
     <script src="charts-pie.js?v=2"></script>
-    <script src="wallet-pnl-section.js?v=5"></script>
+    <script src="wallet-pnl-section.js?v=6"></script>
     <script src="wallet-pnl-table.js?v=3"></script>
-    <script src="app.js?v=124"></script>
+    <script src="app.js?v=133"></script>
   </body>
 </html>

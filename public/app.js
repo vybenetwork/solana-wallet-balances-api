@@ -50,6 +50,8 @@ const portfolioPieLede = document.getElementById('portfolioPieLede');
 const portfolioPieInsight = document.getElementById('portfolioPieInsight');
 const holdingsUsdBars = document.getElementById('holdingsUsdBars');
 const holdersLoading = document.getElementById('holdersLoading');
+const walletSummaryLoading = document.getElementById('walletSummaryLoading');
+const holdingsStatsLoading = document.getElementById('holdingsStatsLoading');
 const holdersError = document.getElementById('holdersError');
 const holdersMeta = document.getElementById('holdersMeta');
 const holdersSummaryCount = document.getElementById('holdersSummaryCount');
@@ -63,6 +65,8 @@ const holdersSummaryCategorisedTip = document.getElementById('holdersSummaryCate
 const holdersBody = document.getElementById('holdersBody');
 const holdersSectionTitle = document.getElementById('holdersSectionTitle');
 const holdersTableViewSwitch = document.getElementById('holdersTableViewSwitch');
+const holdersTableViewSwitchLabel = document.getElementById('holdersTableViewSwitchLabel');
+const walletStatsViewSwitchLabel = document.getElementById('walletStatsViewSwitchLabel');
 const holdersTableWrap = document.getElementById('holdersTableWrap');
 const walletPnlTableWrap = document.getElementById('walletPnlTableWrap');
 const holdersSummaryGrid = document.getElementById('holdersSummary');
@@ -99,15 +103,35 @@ function tokenHasMissingOrZeroPrice(token) {
   return !Number.isFinite(n) || n <= 0;
 }
 
+/** Unverified dust: exactly 1 token or 1.xxxxx (1 ≤ amount < 2). */
+function tokenHasSuspiciousUnitAmount(token) {
+  const n = toNum(token?.amountUi);
+  return Number.isFinite(n) && n >= 1 && n < 2;
+}
+
 function shouldMaskSuspiciousValueUsd(token) {
   if (token?.skipLogoEnrich !== true) return false;
   if (tokenHasMissingOrZeroPrice(token)) return true;
+  if (tokenHasSuspiciousUnitAmount(token)) return true;
   return toNum(token.valueUsd) > SUSPICIOUS_MASK_VALUE_USD_MIN;
+}
+
+function effectiveValueUsd(token) {
+  if (shouldMaskSuspiciousValueUsd(token)) return 0;
+  const v = toNum(token.valueUsd);
+  return v > 0 ? v : 0;
 }
 
 function applySuspiciousValueUsdMask(tokens) {
   for (const token of tokens) {
-    if (shouldMaskSuspiciousValueUsd(token)) token.valueUsd = 0;
+    if (!shouldMaskSuspiciousValueUsd(token)) continue;
+    token.valueUsd = 0;
+    delete token.priceUsd;
+    delete token.price1d;
+    delete token.price7d;
+    delete token.priceChange1dPct;
+    delete token.priceChange7dPct;
+    delete token.priceSource;
   }
 }
 
@@ -347,15 +371,19 @@ function formatCompactNum(n) {
   return formatRoundedValue(num);
 }
 
-/** Holdings table spot price floor (matches suspicious price filter). */
-const TABLE_PRICE_USD_MIN = 0.00001;
+function isFallbackQuotePriceSource(src) {
+  const s = String(src || '').trim();
+  return /^pumpfun/i.test(s) || /^jupiter/i.test(s);
+}
 
-function formatTablePriceUsdFraction(num) {
+/** Holdings table spot price — micro precision below $0.01. */
+function formatTablePriceUsdFraction(num, options = {}) {
   if (!(num > 0)) return '0';
   if (num > 0.01) {
     return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
-  const decimalStr = num.toFixed(12).replace(/\.?0+$/, '');
+  const maxFracDigits = options.truncateMicro ? 6 : 12;
+  const decimalStr = num.toFixed(maxFracDigits).replace(/\.?0+$/, '');
   const dotIdx = decimalStr.indexOf('.');
   if (dotIdx < 0) return decimalStr;
   const intPart = decimalStr.slice(0, dotIdx) || '0';
@@ -364,10 +392,11 @@ function formatTablePriceUsdFraction(num) {
   return `${intPart}.${fracPart}`;
 }
 
-function formatTablePriceUsd(n) {
+function formatTablePriceUsd(n, priceSource) {
   const num = toNum(n);
-  if (!Number.isFinite(num) || num < TABLE_PRICE_USD_MIN) return '—';
-  return `$${formatTablePriceUsdFraction(num)}`;
+  if (!Number.isFinite(num) || num <= 0) return '—';
+  const truncateMicro = isFallbackQuotePriceSource(priceSource);
+  return `$${formatTablePriceUsdFraction(num, { truncateMicro })}`;
 }
 
 function formatPctChangeWithArrow(pct) {
@@ -429,25 +458,18 @@ function formatZeroChangeChipHtml(label, inheritPct = null) {
   return `<span class="swap-pair-chg swap-pair-chg--dead">${escapeHtmlText(label)} 0%</span>`;
 }
 
-function isBothZeroChangeDisplay(t) {
-  const has1d = hasValidPriceChangePct(t.priceChange1dPct);
-  const has7d = hasValidPriceChangePct(t.priceChange7dPct);
-  if (!has1d && !has7d) return true;
-  return has1d && has7d && Number(t.priceChange1dPct) === 0 && Number(t.priceChange7dPct) === 0;
-}
-
 function holdersTableSortRank(t) {
-  if (isBothZeroChangeDisplay(t)) return 3;
   const cat = classifyTokenPieChange(t);
   if (cat === 'profitable') return 0;
   if (cat === 'breaking_even') return 1;
-  return 2;
+  if (cat === 'losing') return 2;
+  return 3;
 }
 
 function compareHoldersTableRows(a, b) {
   const rankDiff = holdersTableSortRank(a) - holdersTableSortRank(b);
   if (rankDiff !== 0) return rankDiff;
-  return toNum(b.valueUsd) - toNum(a.valueUsd);
+  return toNum(effectiveValueUsd(b)) - toNum(effectiveValueUsd(a));
 }
 
 function formatChangeColumnHtml(t) {
@@ -467,7 +489,7 @@ function formatChangeColumnHtml(t) {
 }
 
 function formatPriceColumnHtml(t) {
-  const spot = formatTablePriceUsd(t.priceUsd);
+  const spot = formatTablePriceUsd(t.priceUsd, t.priceSource);
   if (spot === '—') return '—';
   return `<span class="holders-table-price">${escapeHtmlText(spot)}</span>`;
 }
@@ -589,7 +611,7 @@ function aggregateWalletTaxonomy(tokens) {
   for (const t of tokens) {
     const cat = (t.category || '').trim();
     const sub = (t.subcategory || '').trim();
-    const v = toNum(t.valueUsd);
+    const v = effectiveValueUsd(t);
     if (cat) {
       labeledCount += 1;
       const cur = categories.get(cat) ?? { count: 0, usd: 0 };
@@ -831,7 +853,7 @@ function tokenIconHtml(t) {
 }
 
 function updateTableAfterLogoChange() {
-  const totalUsd = lastTokens.reduce((s, row) => s + toNum(row.valueUsd), 0);
+  const totalUsd = lastTokens.reduce((s, row) => s + effectiveValueUsd(row), 0);
   renderTable(lastTokens, totalUsd);
 }
 
@@ -887,7 +909,7 @@ async function repairTokenLogo(mint, options = {}) {
 function prepareTopLogoRepairQueue(tokens) {
   const topN = getTopLogoRepairN();
   if (topN <= 0) return [];
-  const sorted = [...tokens].sort((a, b) => toNum(b.valueUsd) - toNum(a.valueUsd));
+  const sorted = [...tokens].sort((a, b) => effectiveValueUsd(b) - effectiveValueUsd(a));
   return sorted
     .filter((item) => !item.logoUrl?.trim() && !item.skipLogoEnrich)
     .slice(0, topN);
@@ -1147,6 +1169,25 @@ function formatWalletUpdateTime() {
   });
 }
 
+function setSectionViewSwitchersLocked(locked) {
+  for (const label of [holdersTableViewSwitchLabel, walletStatsViewSwitchLabel]) {
+    if (!label) continue;
+    label.classList.toggle('trades-fetch-switch--locked', locked);
+    label.setAttribute('aria-disabled', locked ? 'true' : 'false');
+  }
+  if (holdersTableViewSwitch) holdersTableViewSwitch.disabled = locked;
+  if (walletStatsViewSwitch) walletStatsViewSwitch.disabled = locked;
+}
+
+function setWalletBalancesLoading(isLoading) {
+  for (const el of [loadingIndicator, holdersLoading, walletSummaryLoading, holdingsStatsLoading]) {
+    if (!el) continue;
+    el.hidden = !isLoading;
+    el.setAttribute('aria-hidden', isLoading ? 'false' : 'true');
+  }
+  setSectionViewSwitchersLocked(isLoading);
+}
+
 function renderWalletSummaryPlaceholder() {
   walletSummaryLabel.textContent = '—';
   walletLastUpdatedValue.textContent = '—';
@@ -1247,7 +1288,7 @@ function renderUsdBars(tokens) {
   const sums = defs.map(() => 0);
   let pricedCount = 0;
   for (const t of tokens) {
-    const v = toNum(t.valueUsd);
+    const v = effectiveValueUsd(t);
     const idx = defs.findIndex((d) => d.contains(v));
     if (idx >= 0) {
       counts[idx] += 1;
@@ -1353,7 +1394,7 @@ function priceChange24hBuckets(tokens) {
   for (const t of tokens) {
     const cat = classifyTokenPieChange(t);
     buckets[cat].count += 1;
-    buckets[cat].usd += toNum(t.valueUsd);
+    buckets[cat].usd += effectiveValueUsd(t);
   }
   const order = ['profitable', 'breaking_even', 'losing', 'dead'];
   const totalCount = tokens.length || 1;
@@ -1444,17 +1485,17 @@ function renderCharts(tokens, wallet, totalUsd) {
 }
 
 function renderSummaryStats(tokens, wallet, totalUsd) {
-  const priced = tokens.filter((t) => toNum(t.valueUsd) > 0).length;
+  const priced = tokens.filter((t) => effectiveValueUsd(t) > 0).length;
   const verified = tokens.filter((t) => t.verified).length;
   const unverified = tokens.length - verified;
-  const unpricedCount = tokens.filter((t) => toNum(t.valueUsd) <= 0).length;
-  const unpricedUsd = tokens.reduce((sum, t) => (toNum(t.valueUsd) <= 0 ? sum + toNum(t.valueUsd) : sum), 0);
+  const unpricedCount = tokens.filter((t) => effectiveValueUsd(t) <= 0).length;
+  const unpricedUsd = tokens.reduce((sum, t) => (effectiveValueUsd(t) <= 0 ? sum + effectiveValueUsd(t) : sum), 0);
   const taxonomy = aggregateWalletTaxonomy(tokens);
 
   let verifiedUsd = 0;
   let unverifiedUsd = 0;
   for (const t of tokens) {
-    const v = toNum(t.valueUsd);
+    const v = effectiveValueUsd(t);
     if (v <= 0) continue;
     if (t.verified) verifiedUsd += v;
     else unverifiedUsd += v;
@@ -1583,7 +1624,7 @@ function renderTable(tokens, totalUsd) {
   const sorted = [...tokens].sort(compareHoldersTableRows);
   holdersBody.innerHTML = sorted
     .map((t, i) => {
-      const v = toNum(t.valueUsd);
+      const v = effectiveValueUsd(t);
       const pct = totalUsd > 0 && v > 0 ? (v / totalUsd) * 100 : 0;
       const iconHtml = tokenIconHtml(t);
       const src = t.priceSource || (v > 0 ? 'Vybe list' : '—');
@@ -1628,8 +1669,10 @@ async function fetchBalances() {
   }
   clearError();
   fetchAllBtn.disabled = true;
-  loadingIndicator.hidden = false;
-  holdersLoading.hidden = false;
+  setWalletBalancesLoading(true);
+  renderWalletSummaryPlaceholder();
+  setChartsPlaceholder();
+  walletStatsSection.hidden = false;
   clearAllLogoLoadTimeouts();
   resetVybeLogoLoadQueue();
   logoFailedMints.clear();
@@ -1674,7 +1717,7 @@ async function fetchBalances() {
     for (const item of repairCandidates) {
       logoPendingRepairMints.add(item.mintAddress);
     }
-    const totalUsd = lastTokens.reduce((sum, row) => sum + toNum(row.valueUsd), 0);
+    const totalUsd = lastTokens.reduce((sum, row) => sum + effectiveValueUsd(row), 0);
     renderSummaryStats(lastTokens, wallet, totalUsd);
     renderCharts(lastTokens, wallet, totalUsd);
     renderTable(lastTokens, totalUsd);
@@ -1693,8 +1736,7 @@ async function fetchBalances() {
     showError(err instanceof Error ? err.message : String(err));
   } finally {
     fetchAllBtn.disabled = false;
-    loadingIndicator.hidden = true;
-    holdersLoading.hidden = true;
+    setWalletBalancesLoading(false);
   }
 }
 
