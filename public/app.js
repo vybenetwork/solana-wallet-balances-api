@@ -257,12 +257,13 @@ function toNum(n) {
   return Number.isFinite(x) ? x : 0;
 }
 
-/** 0 decimals unless |value| < 1 (then 2). Values in (0, 0.01) display as 0.01. */
+/** 0 decimals unless |value| < 1 (then 2). Tiny non-zero values clamp to ±0.01. */
 function formatRoundedValue(num) {
   const n = Number(num);
   if (!Number.isFinite(n)) return null;
   if (n === 0) return '0';
   if (n > 0 && n < 0.01) return '0.01';
+  if (n < 0 && n > -0.01) return '-0.01';
   const abs = Math.abs(n);
   if (abs < 1) return n.toFixed(2);
   return String(Math.round(n));
@@ -477,11 +478,11 @@ function formatChangeColumnHtml(t) {
   const has7d = hasValidPriceChangePct(t.priceChange7dPct);
 
   if (!has1d && !has7d) {
-    return `<div class="holders-price-changes">${formatZeroChangeChipHtml('1d:')}${formatZeroChangeChipHtml('7d:')}</div>`;
+    return `<div class="holders-price-changes">${formatMissingChangeChipHtml('1d:')}${formatMissingChangeChipHtml('7d:')}</div>`;
   }
 
   const chips = [
-    has1d ? formatPriceChangeChipHtml('1d:', t.priceChange1dPct) : has7d ? formatZeroChangeChipHtml('1d:', t.priceChange7dPct) : formatMissingChangeChipHtml('1d:'),
+    has1d ? formatPriceChangeChipHtml('1d:', t.priceChange1dPct) : formatMissingChangeChipHtml('1d:', has7d ? t.priceChange7dPct : null),
     has7d ? formatPriceChangeChipHtml('7d:', t.priceChange7dPct) : formatMissingChangeChipHtml('7d:', has1d ? t.priceChange1dPct : null),
   ];
 

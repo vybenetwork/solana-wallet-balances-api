@@ -4687,6 +4687,13 @@ td .mono {
   background: rgba(250, 204, 21, 0.1);
 }
 
+/* Dead rows: 1d missing chip matches 7d missing styling */
+#holdersTable tbody tr.holders-row--dead .swap-pair-chg--missing {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.3);
+  background: rgba(250, 204, 21, 0.1);
+}
+
 .swap-pair-chg--faded {
   opacity: 0.5;
 }

@@ -351,25 +351,87 @@ function attachPriceSource(item: WalletBalanceListItem): WalletBalanceListItem {
   return item;
 }
 
-function vybePrice1dFromBalanceRow(row: VybeTokenBalance, priceUsd?: number): number | undefined {
-  const change1d = row.priceUsd1dChange != null ? Number(row.priceUsd1dChange) : NaN;
-  if (priceUsd != null && Number.isFinite(change1d)) {
-    const past = priceUsd - change1d;
-    if (past > 0) return past;
-  }
-  const trend = row.priceUsd7dTrend;
-  if (Array.isArray(trend) && trend.length >= 2) {
-    const p = Number(trend[trend.length - 2]);
-    if (Number.isFinite(p) && p > 0) return p;
+function vybeTrendPricePositive(raw: unknown): number | undefined {
+  const p = Number(raw);
+  return Number.isFinite(p) && p > 0 ? p : undefined;
+}
+
+/** First positive price walking from startIdx toward older (step -1) or newer (step +1) samples. */
+function vybeTrendPositivePrice(
+  trend: string[] | null | undefined,
+  startIdx: number,
+  step: -1 | 1,
+): number | undefined {
+  if (!Array.isArray(trend) || trend.length === 0) return undefined;
+  for (let i = startIdx; i >= 0 && i < trend.length; i += step) {
+    const p = vybeTrendPricePositive(trend[i]);
+    if (p != null) return p;
   }
   return undefined;
 }
 
-function vybePrice7dFromBalanceRow(row: VybeTokenBalance): number | undefined {
+function vybePrice1dFromBalanceRow(row: VybeTokenBalance, priceUsd?: number): number | undefined {
+  if (priceUsd != null && Number.isFinite(priceUsd)) {
+    const change1d = row.priceUsd1dChange != null ? Number(row.priceUsd1dChange) : NaN;
+    if (Number.isFinite(change1d)) {
+      const past = priceUsd - change1d;
+      if (past > 0) return past;
+    }
+  }
+  const trend = row.priceUsd7dTrend;
+  if (Array.isArray(trend) && trend.length > 0) {
+    return vybeTrendPricePositive(trend[0]);
+  }
+  return undefined;
+}
+
+function vybePrice7dFromBalanceRow(row: VybeTokenBalance, priceUsd?: number): number | undefined {
   const trend = row.priceUsd7dTrend;
   if (!Array.isArray(trend) || trend.length === 0) return undefined;
-  const p = Number(trend[0]);
-  return Number.isFinite(p) && p > 0 ? p : undefined;
+  const oldestIdx = trend.length - 1;
+  const oldest = vybeTrendPricePositive(trend[oldestIdx]);
+  if (oldest != null) return oldest;
+  if (priceUsd == null || !Number.isFinite(priceUsd)) {
+    return vybeTrendPositivePrice(trend, oldestIdx, -1);
+  }
+  for (let i = oldestIdx; i >= 0; i--) {
+    const p = vybeTrendPricePositive(trend[i]);
+    if (p != null && p !== priceUsd) return p;
+  }
+  return undefined;
+}
+
+function priceChange7dPctFromVybeRow(row: VybeTokenBalance, priceUsd?: number): number | undefined {
+  const price7d = vybePrice7dFromBalanceRow(row, priceUsd);
+  return clampTinyPriceChangePct(priceChangePct(priceUsd, price7d));
+}
+
+/** 1d % from priceUsd1dChange or priceUsd7dTrend[0]. Zero-baseline moves clamp to ±0.01. */
+function priceChange1dPctFromVybeRow(row: VybeTokenBalance, priceUsd?: number): number | undefined {
+  if (priceUsd == null || !Number.isFinite(priceUsd) || priceUsd <= 0) return undefined;
+  const changeRaw = row.priceUsd1dChange;
+  if (changeRaw != null && String(changeRaw).trim() !== '') {
+    const change1d = Number(changeRaw);
+    if (Number.isFinite(change1d)) {
+      const past = priceUsd - change1d;
+      if (past > 0) {
+        const pct = priceChangePct(priceUsd, past);
+        return clampTinyPriceChangePct(pct);
+      }
+      if (change1d > 0) return 0.01;
+      if (change1d < 0) return -0.01;
+    }
+  }
+  return clampTinyPriceChangePct(
+    priceChangePct(priceUsd, vybePrice1dFromBalanceRow(row, priceUsd)),
+  );
+}
+
+function clampTinyPriceChangePct(pct: number | undefined): number | undefined {
+  if (pct == null || !Number.isFinite(pct) || pct === 0) return pct;
+  if (pct > 0 && pct < 0.01) return 0.01;
+  if (pct < 0 && pct > -0.01) return -0.01;
+  return pct;
 }
 
 /** Map fields already present on Vybe wallet token-balance rows (no per-mint GET /v4/tokens). */
@@ -378,13 +440,13 @@ function vybeFieldsFromWalletBalanceRow(row: VybeTokenBalance): Partial<WalletBa
   const priceUsd =
     Number.isFinite(priceUsdRaw) && priceUsdRaw > 0 ? priceUsdRaw : undefined;
   const price1d = vybePrice1dFromBalanceRow(row, priceUsd);
-  const price7d = vybePrice7dFromBalanceRow(row);
+  const price7d = vybePrice7dFromBalanceRow(row, priceUsd);
   return {
     priceUsd,
     price1d,
     price7d,
-    priceChange1dPct: priceChangePct(priceUsd, price1d),
-    priceChange7dPct: priceChangePct(priceUsd, price7d),
+    priceChange1dPct: priceChange1dPctFromVybeRow(row, priceUsd),
+    priceChange7dPct: priceChange7dPctFromVybeRow(row, priceUsd),
     category: typeof row.category === 'string' ? row.category.trim() || null : null,
     priceSource: priceUsd != null ? 'Vybe' : undefined,
   };
