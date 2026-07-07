@@ -974,10 +974,10 @@ function walletUsdBands() {
   return [
     { label: '$0.01', contains: (v) => v > 0 && v < 0.01 },
     { label: '$0.01-$0.10', contains: (v) => v >= 0.01 && v < 0.1 },
-    { label: '$0.10-$1.00', contains: (v) => v >= 0.1 && v < 1 },
-    { label: '$1.00-$10.00', contains: (v) => v >= 1 && v < 10 },
-    { label: '$10.00-$100.00', contains: (v) => v >= 10 && v < 100 },
-    { label: '$100.00-$1,000', contains: (v) => v >= 100 && v < 1000 },
+    { label: '$0.10-$1', contains: (v) => v >= 0.1 && v < 1 },
+    { label: '$1-$10', contains: (v) => v >= 1 && v < 10 },
+    { label: '$10-$100', contains: (v) => v >= 10 && v < 100 },
+    { label: '$100-$1,000', contains: (v) => v >= 100 && v < 1000 },
     { label: '$1,000-$10,000', contains: (v) => v >= 1000 && v < 10000 },
     { label: '$10,000+', contains: (v) => v >= 10000 },
   ];
