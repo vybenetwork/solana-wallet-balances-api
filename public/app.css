@@ -688,6 +688,74 @@ body {
   box-shadow: 0 4px 14px rgba(249, 115, 22, 0.18);
 }
 
+.page-masthead__btn--demo-balances {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16) 0%, rgba(2, 132, 199, 0.1) 100%);
+  border-color: rgba(56, 189, 248, 0.32);
+  color: #bae6fd;
+}
+
+.page-masthead__btn--demo-balances .page-masthead__demo-preview {
+  background: rgba(14, 165, 233, 0.22);
+  color: #38bdf8;
+}
+
+.page-masthead__btn--demo-balances:hover {
+  background: rgba(14, 165, 233, 0.3);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #fff;
+  transform: translateY(-1px);
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.18);
+}
+
+.page-masthead__btn--demo-current {
+  cursor: default;
+  pointer-events: none;
+  border-width: 2px;
+  transform: none;
+}
+
+.page-masthead__btn--demo-current:hover {
+  transform: none;
+  text-decoration: none;
+}
+
+.page-masthead__btn--demo-balances.page-masthead__btn--demo-current {
+  border-color: #38bdf8;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.55),
+    0 0 18px rgba(14, 165, 233, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.page-masthead__btn--demo-balances.page-masthead__btn--demo-current:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16) 0%, rgba(2, 132, 199, 0.1) 100%);
+  border-color: #38bdf8;
+  color: #bae6fd;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.55),
+    0 0 18px rgba(14, 165, 233, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.page-masthead__btn--demo-defi.page-masthead__btn--demo-current {
+  border-color: #fb923c;
+  box-shadow:
+    0 0 0 1px rgba(251, 146, 60, 0.55),
+    0 0 18px rgba(249, 115, 22, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.page-masthead__btn--demo-defi.page-masthead__btn--demo-current:hover {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.16) 0%, rgba(194, 65, 12, 0.1) 100%);
+  border-color: #fb923c;
+  color: #fed7aa;
+  box-shadow:
+    0 0 0 1px rgba(251, 146, 60, 0.55),
+    0 0 18px rgba(249, 115, 22, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
 .page-masthead__btn--demo-soon {
   background: linear-gradient(135deg, rgba(107, 114, 128, 0.12) 0%, rgba(55, 65, 81, 0.08) 100%);
   border-color: rgba(156, 163, 175, 0.22);
