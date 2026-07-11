@@ -97,9 +97,10 @@ body {
 }
 
 .page-masthead__visual {
-  flex: 0 1 160px;
-  max-width: 160px;
+  flex: 0 0 120px;
+  max-width: 120px;
   min-width: 0;
+  margin-left: auto;
   overflow: hidden;
 }
 
@@ -108,13 +109,14 @@ body {
   width: 100%;
   height: auto;
   object-fit: contain;
-  object-position: center;
+  object-position: right center;
 }
 
 @media (max-width: 900px) {
   .page-masthead__visual {
-    flex: 0 1 auto;
-    max-width: 160px;
+    flex: 0 0 120px;
+    max-width: 120px;
+    margin-left: auto;
   }
 }
 
