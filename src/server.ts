@@ -99,6 +99,7 @@ app.get('/api/wallets/:ownerAddress/token-balances', async (req: Request, res: R
       const enrichStream = qBool(req, 'enrich', true);
       res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Accel-Buffering', 'no');
       res.flushHeaders();
       let closed = false;
       req.on('close', () => {
@@ -111,6 +112,8 @@ app.get('/api/wallets/:ownerAddress/token-balances', async (req: Request, res: R
         (event) => {
           if (closed) return;
           res.write(`${JSON.stringify(event)}\n`);
+          const flushable = res as unknown as { flush?: () => void };
+          flushable.flush?.();
         },
         () => closed,
         { enrich: enrichStream, enrichLimit },

@@ -4872,6 +4872,17 @@ td .mono {
   margin-top: 1rem;
 }
 
+/* Match solana-wallet-pnl-profit-and-loss-api `.top-traders-section a`
+   (PnL stats live under token-supply-panel here, not top-traders-section). */
+.wallet-pnl-details a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.wallet-pnl-details a:hover {
+  text-decoration: none;
+}
+
 .wallet-pnl-sections {
   display: flex;
   flex-direction: column;

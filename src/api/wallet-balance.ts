@@ -1041,6 +1041,8 @@ export async function streamWalletTokenBalances(
   const { items, rpcOnlyToEnrich } = await mergeWalletBalancesFromRpcAndVybe(http, ownerAddress, limit);
   if (isCancelled?.()) return;
   emit({ event: 'initial', tokens: maskSuspiciousWalletBalanceList(items) });
+  // Yield so the initial NDJSON frame can flush before slow rpc-only enrich.
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   if (enrichLimit > 0 || rpcOnlyToEnrich.length > 0) {
     let working = items;
@@ -1083,14 +1085,12 @@ export async function listWalletTokenBalances(
   const enrich = options?.enrich === true;
   const enrichLimit = resolveMetaEnrichLimit(options?.enrichLimit, enrich);
   const label = ownerAddress.trim().slice(0, 8);
-  const { items, rpcOnlyToEnrich } = await mergeWalletBalancesFromRpcAndVybe(http, ownerAddress, limit);
+  const { items } = await mergeWalletBalancesFromRpcAndVybe(http, ownerAddress, limit);
   let result = items.slice(0, limit);
   if (!enrich) return maskSuspiciousWalletBalanceList(result);
 
   result = await enrichWalletBalanceList(http, result, enrichLimit, label);
-  if (rpcOnlyToEnrich.length > 0) {
-    result = await enrichRpcOnlyTargets(http, result, rpcOnlyToEnrich, label);
-  }
+  // RPC-only enrich runs after initial load via streamWalletTokenBalances.
   return maskSuspiciousWalletBalanceList(sortWalletBalanceItems(result).slice(0, limit));
 }
 
