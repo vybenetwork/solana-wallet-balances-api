@@ -335,13 +335,13 @@
           <div class="field field--top-logo-repair">
             <label for="topLogoRepairN">
               <span class="label-icon field-icon icon-grid" aria-hidden="true"></span>
-              Missing Logo Repair Fallback
+              Stream Logo Enrich
             </label>
             <div class="field-control field-control--logo-repair">
               <label
                 class="trades-fetch-switch"
                 id="topLogoRepairSwitchLabel"
-                title="Enable missing-logo repair fallback on load"
+                title="During the balance stream, materialize logos server-side for the top N holdings missing icons"
               >
                 <input type="checkbox" id="topLogoRepairEnabled" class="trades-fetch-switch-input" checked />
                 <span class="trades-fetch-switch-track">
@@ -357,7 +357,7 @@
                   min="1"
                   max="20"
                   value="10"
-                  title="On load, only the top N holdings by USD value missing logos get proactive repair"
+                  title="Top N holdings by USD value that get logo materialize during the balance stream"
                 />
               </div>
             </div>
@@ -366,7 +366,7 @@
           <div class="field field--logo-img-timeout">
             <label for="logoImgTimeoutSec">
               <span class="label-icon field-icon icon-clock" aria-hidden="true"></span>
-              Fallback Timeout
+              Logo Image Timeout
             </label>
             <div class="field-control field-control-input-suffix">
               <span class="field-icon icon-clock" aria-hidden="true"></span>
@@ -376,7 +376,7 @@
                 min="3"
                 max="30"
                 value="10"
-                title="Timeout for logo image load and GET /api/token/:mint/logo repair"
+                title="Timeout for loading a local /cached logo image before showing a placeholder"
               />
               <span class="input-suffix" aria-hidden="true">sec</span>
             </div>
@@ -629,6 +629,6 @@
     <script src="wallet-pnl-section.js?v=6"></script>
     <script src="wallet-pnl-table.js?v=3"></script>
     <script src="mint-meta-cache.js?v=1"></script>
-    <script src="app.js?v=152"></script>
+    <script src="app.js?v=153"></script>
   </body>
 </html>

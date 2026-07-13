@@ -816,18 +816,7 @@ function tokenSkipsLogoRepair(mint) {
 function handleLogoLoadTimeout(mint) {
   logoImgTimeouts.delete(mint);
   if (logoFailedMints.has(mint) || logoImageLoadedMints.has(mint)) return;
-  if (tokenSkipsLogoRepair(mint)) {
-    failTokenLogo(mint);
-    return;
-  }
-  if (logoRepairInFlight.has(mint)) {
-    armLogoLoadTimeout(mint);
-    return;
-  }
-  if (!logoRepairAttemptedMints.has(mint)) {
-    repairTokenLogo(mint, { force: true });
-    return;
-  }
+  // Stream enrich already tried; don't fall back to blocking GET /api/token/:mint/logo.
   failTokenLogo(mint);
 }
 
@@ -847,19 +836,7 @@ function handleTokenIconError(mint, imgEl) {
     imgEl.classList.add('token-logo--img-loading');
     imgEl.style.opacity = '0';
   }
-  if (logoFailedMints.has(mint)) {
-    updateTableAfterLogoChange();
-    return;
-  }
-  if (tokenSkipsLogoRepair(mint)) {
-    failTokenLogo(mint);
-    return;
-  }
-  if (logoRepairInFlight.has(mint)) return;
-  if (!logoRepairAttemptedMints.has(mint)) {
-    repairTokenLogo(mint, { force: true });
-    return;
-  }
+  // Missing/broken local icon → placeholder. No per-mint /logo repair.
   failTokenLogo(mint);
 }
 
@@ -916,21 +893,9 @@ function updateTableAfterLogoChange() {
   renderTable(lastTokens, totalUsd);
 }
 
-async function fetchRepairedLogo(mint, force) {
-  const url = `/api/token/${encodeURIComponent(mint)}/logo?force=${force ? '1' : '0'}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), getLogoRepairTimeoutMs());
-  try {
-    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const logo = data.logoUrl?.trim();
-    return logo && isLocalCachedLogoUrl(logo) ? logo : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+async function fetchRepairedLogo(_mint, _force) {
+  // Client per-mint /logo repair removed — stream enrich materializes logos server-side.
+  return null;
 }
 
 function applyClientMintMeta(token) {
@@ -943,102 +908,17 @@ function rememberClientMintMeta(token) {
   window.VybeMintMetaCache?.rememberToken?.(token);
 }
 
-async function repairTokenLogo(mint, options = {}) {
-  if (logoRepairInFlight.has(mint)) return;
-  if (tokenSkipsLogoRepair(mint)) return;
-  if (options.force !== true) {
-    if (logoFailedMints.has(mint) || logoRepairAttemptedMints.has(mint)) return;
-    if (logoImageLoadedMints.has(mint)) return;
-  }
-  const existingIdx = lastTokens.findIndex((row) => row.mintAddress === mint);
-  let existingLocal =
-    existingIdx >= 0 && isLocalCachedLogoUrl(lastTokens[existingIdx].logoUrl)
-      ? lastTokens[existingIdx].logoUrl.trim()
-      : '';
-  if (!existingLocal && options.force !== true) {
-    const durableLogo = window.VybeMintMetaCache?.get?.(mint)?.logoUrl;
-    if (durableLogo && isLocalCachedLogoUrl(durableLogo)) {
-      existingLocal = durableLogo.trim();
-      if (existingIdx >= 0) {
-        lastTokens[existingIdx] = {
-          ...lastTokens[existingIdx],
-          ...window.VybeMintMetaCache.get(mint),
-          logoUrl: existingLocal,
-        };
-      }
-    }
-  }
-  // Stream/enrich/client cache already gave a local path — show it; don't run /logo repair.
-  if (existingLocal && options.force !== true) {
-    logoFailedMints.delete(mint);
-    logoPendingRepairMints.delete(mint);
-    logoSrcAssignedMints.add(mint);
-    if (existingIdx >= 0) rememberClientMintMeta(lastTokens[existingIdx]);
-    updateTableAfterLogoChange();
-    return;
-  }
-  logoRepairAttemptedMints.add(mint);
-  logoRepairInFlight.add(mint);
-  logoLoadingMints.add(mint);
-  updateTableAfterLogoChange();
-  try {
-    const logo = await fetchRepairedLogo(mint, options.force === true);
-    if (!logo) {
-      // Keep an existing local logo from the stream; only fail when we have nothing.
-      if (existingLocal) {
-        logoFailedMints.delete(mint);
-        logoSrcAssignedMints.add(mint);
-      } else {
-        logoFailedMints.add(mint);
-      }
-      return;
-    }
-    const idx = lastTokens.findIndex((row) => row.mintAddress === mint);
-    if (idx < 0) return;
-    lastTokens[idx] = { ...lastTokens[idx], logoUrl: logo };
-    rememberClientMintMeta(lastTokens[idx]);
-    logoFailedMints.delete(mint);
-    logoImageLoadedMints.delete(mint);
-    logoSrcAssignedMints.add(mint);
-  } catch {
-    if (existingLocal) {
-      logoFailedMints.delete(mint);
-      logoSrcAssignedMints.add(mint);
-    } else {
-      logoFailedMints.add(mint);
-    }
-  } finally {
-    logoLoadingMints.delete(mint);
-    logoPendingRepairMints.delete(mint);
-    logoRepairInFlight.delete(mint);
-    updateTableAfterLogoChange();
-  }
+async function repairTokenLogo(_mint, _options = {}) {
+  // No-op: do not call GET /api/token/:mint/logo after the holdings stream.
+  return;
 }
 
-function prepareTopLogoRepairQueue(tokens) {
-  const topN = getTopLogoRepairN();
-  if (topN <= 0) return [];
-  const sorted = [...tokens].sort((a, b) => effectiveValueUsd(b) - effectiveValueUsd(a));
-  return sorted
-    .filter(
-      (item) =>
-        !isLocalCachedLogoUrl(item.logoUrl) &&
-        !item.skipLogoEnrich &&
-        !logoFailedMints.has(item.mintAddress) &&
-        !logoRepairAttemptedMints.has(item.mintAddress) &&
-        !logoImageLoadedMints.has(item.mintAddress),
-    )
-    .slice(0, topN);
+function prepareTopLogoRepairQueue(_tokens) {
+  return [];
 }
 
-function queueTopLogoRepairs(tokens) {
-  const candidates = prepareTopLogoRepairQueue(tokens);
-  for (const item of candidates) {
-    logoPendingRepairMints.add(item.mintAddress);
-  }
-  for (const item of candidates) {
-    repairTokenLogo(item.mintAddress);
-  }
+function queueTopLogoRepairs(_tokens) {
+  /* no client /logo repair */
 }
 
 function setSupplyLegendGrid(el, sliceCount) {
@@ -1860,13 +1740,8 @@ async function fetchBalances() {
       holdersMeta.textContent = formatHoldersMetaLoadedText(lastTokens.length);
     }
     if (repairLogos) {
-      const repairCandidates = prepareTopLogoRepairQueue(lastTokens);
-      for (const item of repairCandidates) {
-        logoPendingRepairMints.add(item.mintAddress);
-      }
-      for (const item of repairCandidates) {
-        repairTokenLogo(item.mintAddress);
-      }
+      // Logos are materialized in the balance stream (enrichLimit). Do not fire
+      // per-mint GET /api/token/:mint/logo — that was a blocking post-fetch fallback.
     }
   };
 
@@ -1891,18 +1766,7 @@ async function fetchBalances() {
       rememberClientMintMeta(token);
     }
     applyTokens(lastTokens, { repairLogos: false });
-    // Only repair when stream + client cache left us without a local icon.
-    if (
-      token.mintAddress &&
-      !logoImageLoadedMints.has(token.mintAddress) &&
-      !logoFailedMints.has(token.mintAddress) &&
-      !logoRepairAttemptedMints.has(token.mintAddress) &&
-      !logoRepairInFlight.has(token.mintAddress) &&
-      !isLocalCachedLogoUrl(token.logoUrl)
-    ) {
-      logoPendingRepairMints.add(token.mintAddress);
-      repairTokenLogo(token.mintAddress);
-    }
+    // Stream updates carry materialized local logos; no client /logo repair.
   };
 
   try {
