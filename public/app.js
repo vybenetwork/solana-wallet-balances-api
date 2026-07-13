@@ -1092,16 +1092,45 @@ const WALLET_STAT_ROW_ICONS = {
     '<svg class="token-stat-row-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
 };
 
+/**
+ * Portfolio Value cards: k / M / B / T after $9999, always 2 decimals when compact.
+ */
+function formatPortfolioStatUsd(n) {
+  const num = toNum(n);
+  if (!Number.isFinite(num)) return '—';
+  if (num === 0) return '$0';
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '−' : '';
+  if (abs <= 9999) return formatUsd(num);
+
+  let scaled;
+  let suffix;
+  if (abs >= 1e12) {
+    scaled = abs / 1e12;
+    suffix = 'T';
+  } else if (abs >= 1e9) {
+    scaled = abs / 1e9;
+    suffix = 'B';
+  } else if (abs >= 1e6) {
+    scaled = abs / 1e6;
+    suffix = 'M';
+  } else {
+    scaled = abs / 1e3;
+    suffix = 'k';
+  }
+  return `${sign}$${scaled.toFixed(2)}${suffix}`;
+}
+
 function walletStatUsdHtml(value) {
   if (value == null) return escapeHtmlText('—');
-  return `<span class="token-stat-usd-value">${escapeHtmlText(formatUsd(value))}</span>`;
+  return `<span class="token-stat-usd-value">${escapeHtmlText(formatPortfolioStatUsd(value))}</span>`;
 }
 
 function walletStatUsdWithTotalHtml(value) {
   if (value == null) return escapeHtmlText('—');
   const n = Number(value);
   if (!Number.isFinite(n)) return escapeHtmlText('—');
-  return `<span class="token-stat-usd-value">${escapeHtmlText(formatUsd(n))}</span> <span class="token-stat-count-suffix">Total</span>`;
+  return `<span class="token-stat-usd-value">${escapeHtmlText(formatPortfolioStatUsd(n))}</span> <span class="token-stat-count-suffix">Total</span>`;
 }
 
 function walletStatRowHtml(row) {
