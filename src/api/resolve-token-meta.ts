@@ -21,6 +21,10 @@ import {
   isUnusableTokenMeta,
   type CachedTokenMeta,
 } from '../token-icon-cache.js';
+import {
+  isEnrichBlacklisted,
+  recordExternalEnrichFailure,
+} from './enrich-fail-blacklist.js';
 
 function isPumpFunMint(mint: string): boolean {
   return mint.trim().toLowerCase().endsWith('pump');
@@ -78,8 +82,8 @@ function metaSourceOrder(
   }
   if (isPumpFunMint(mint)) {
     const pumpOrder: MetaSource[] = skipVybe || shouldSkipVybeMeta(disk, mint)
-      ? ['pumpfun']
-      : ['pumpfun', 'vybe'];
+      ? ['pumpfun', 'jupiter']
+      : ['pumpfun', 'vybe', 'jupiter'];
     return pumpOrder;
   }
   const orderKey = isVybeFirstPriceMint(mint) ? 'vybeFirst' : 'default';
@@ -210,16 +214,32 @@ export async function resolveTokenMeta(
   let disk = getCachedTokenMetaFromDisk(m);
   if (metaIsComplete(disk)) return { meta: disk!, source: disk?.priceSource };
 
+  if (isEnrichBlacklisted(m)) {
+    disk = getCachedTokenMetaFromDisk(m);
+    if (!disk) return null;
+    if (options.skipVybe === true && isUnusableTokenMeta(disk, m)) return null;
+    return { meta: disk, source: disk.priceSource };
+  }
+
   const solPriceUsd = solPriceUsdFromDisk();
   const skipVybe = options.skipVybe === true;
   const preferVybe = options.preferVybe === true;
 
+  let jupiterOutcome: 'ok' | 'fail' | 'skip' = 'skip';
+  let pumpfunOutcome: 'ok' | 'fail' | 'skip' = 'skip';
+
   for (const metaSource of metaSourceOrder(m, disk, skipVybe, preferVybe)) {
     disk = getCachedTokenMetaFromDisk(m);
     if (!metaNeedsEnrichment(m, disk)) break;
-    if (await applyMetaSource(http, m, metaSource, solPriceUsd, disk?.decimals)) {
-      source = metaSourceLabel(metaSource);
-    }
+    const ok = await applyMetaSource(http, m, metaSource, solPriceUsd, disk?.decimals);
+    if (metaSource === 'jupiter') jupiterOutcome = ok ? 'ok' : 'fail';
+    if (metaSource === 'pumpfun') pumpfunOutcome = ok ? 'ok' : 'fail';
+    if (ok) source = metaSourceLabel(metaSource);
+  }
+
+  const externalOk = jupiterOutcome === 'ok' || pumpfunOutcome === 'ok';
+  if (jupiterOutcome === 'fail' && pumpfunOutcome === 'fail' && !externalOk) {
+    recordExternalEnrichFailure(m);
   }
 
   if (!hasCachedTokenIcon(m)) {

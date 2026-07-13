@@ -3114,11 +3114,14 @@ button:not(.vybe-action-btn):disabled {
   gap: 0.35rem;
 }
 
+.holders-price-source__icon,
 .holders-price-source__vybe-icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   display: block;
+  border-radius: 3px;
+  object-fit: contain;
 }
 
 .holders-mint-link {
@@ -3650,6 +3653,14 @@ td .mono {
   vertical-align: middle;
 }
 
+/* Temporarily hide Market cap + USD vol (24h) from holdings tables. */
+#holdersTable th:nth-child(8),
+#holdersTable td:nth-child(8),
+#holdersTable th:nth-child(9),
+#holdersTable td:nth-child(9) {
+  display: none !important;
+}
+
 /* Keep price / mcap / vol inside their fixed columns (RPC micro-prices used to bleed). */
 #holdersTable .holders-price-col,
 #holdersTable .holders-mcap-supply-col,
@@ -3710,6 +3721,8 @@ td .mono {
   flex-shrink: 0;
 }
 
+#holdersTable td:nth-child(5) .trades-cell-with-volume__bars,
+#holdersTable td:nth-child(5) .trades-cell-with-volume__main,
 #holdersTable td:nth-child(8) .trades-cell-with-volume__bars,
 #holdersTable td:nth-child(8) .trades-cell-with-volume__main,
 #holdersTable td:nth-child(9) .trades-cell-with-volume__bars,
@@ -3719,6 +3732,7 @@ td .mono {
   align-self: center;
 }
 
+#holdersTable td:nth-child(5) .trade-volume-bars,
 #holdersTable td:nth-child(8) .trade-volume-bars,
 #holdersTable td:nth-child(9) .trade-volume-bars {
   height: 1.1em;
@@ -3726,20 +3740,26 @@ td .mono {
   align-self: center;
 }
 
+#holdersTable td:nth-child(5) .trade-volume-bar,
 #holdersTable td:nth-child(8) .trade-volume-bar,
 #holdersTable td:nth-child(9) .trade-volume-bar {
   width: 0.22em;
   border-radius: 0.05em;
 }
 
+#holdersTable td:nth-child(5) .trade-volume-bar:nth-child(1),
 #holdersTable td:nth-child(8) .trade-volume-bar:nth-child(1),
 #holdersTable td:nth-child(9) .trade-volume-bar:nth-child(1) { height: 0.35em; }
+#holdersTable td:nth-child(5) .trade-volume-bar:nth-child(2),
 #holdersTable td:nth-child(8) .trade-volume-bar:nth-child(2),
 #holdersTable td:nth-child(9) .trade-volume-bar:nth-child(2) { height: 0.5em; }
+#holdersTable td:nth-child(5) .trade-volume-bar:nth-child(3),
 #holdersTable td:nth-child(8) .trade-volume-bar:nth-child(3),
 #holdersTable td:nth-child(9) .trade-volume-bar:nth-child(3) { height: 0.65em; }
+#holdersTable td:nth-child(5) .trade-volume-bar:nth-child(4),
 #holdersTable td:nth-child(8) .trade-volume-bar:nth-child(4),
 #holdersTable td:nth-child(9) .trade-volume-bar:nth-child(4) { height: 0.8em; }
+#holdersTable td:nth-child(5) .trade-volume-bar:nth-child(5),
 #holdersTable td:nth-child(8) .trade-volume-bar:nth-child(5),
 #holdersTable td:nth-child(9) .trade-volume-bar:nth-child(5) { height: 0.95em; }
 
@@ -3883,10 +3903,22 @@ td .mono {
   font-size: 0.72rem;
 }
 
-.wallet-charts-row__col--usd-bands .holders-value-usd-bag__svg {
-  width: 8.8px;
-  height: 12px;
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bars {
+  height: 1.1em;
+  align-items: flex-end;
+  flex-shrink: 0;
 }
+
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar {
+  width: 0.22em;
+  border-radius: 0.05em;
+}
+
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar:nth-child(1) { height: 0.35em; }
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar:nth-child(2) { height: 0.5em; }
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar:nth-child(3) { height: 0.65em; }
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar:nth-child(4) { height: 0.8em; }
+.wallet-charts-row__col--usd-bands .holders-hbar-name .trade-volume-bar:nth-child(5) { height: 0.95em; }
 
 .wallet-charts-row__col--usd-bands .holders-hbar-meta {
   grid-column: 2;

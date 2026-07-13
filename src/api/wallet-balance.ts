@@ -20,6 +20,7 @@ import {
 } from './hydrate-wallet-holdings.js';
 import { cacheMintProgramLabelFallback } from './mint-program-label.js';
 import { materializeItemLogosLocal, materializeTokenLogoLocal } from './materialize-token-logo.js';
+import { isEnrichBlacklisted } from './enrich-fail-blacklist.js';
 
 export { WALLET_TOKEN_BALANCE_LIMIT };
 
@@ -825,6 +826,7 @@ async function enrichWalletBalanceList(
 
 function needsEnrichment(item: WalletBalanceListItem): boolean {
   if (item.skipLogoEnrich) return false;
+  if (isEnrichBlacklisted(item.mintAddress)) return false;
   if (item.enrichmentPending) return true;
   if (isBadHoldingsLabel(item.symbol, item.mintAddress)) return true;
   const hasUsd =
