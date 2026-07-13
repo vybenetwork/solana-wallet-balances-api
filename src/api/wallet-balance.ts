@@ -37,6 +37,10 @@ export { NATIVE_SOL_MINT, WSOL_MINT };
 export const TOP_LOGO_REPAIR_N = 10;
 /** Max meta enrich per request (GUI input max). */
 export const TOP_LOGO_REPAIR_N_MAX = 20;
+/** Force-disable stream enrich when wallet has more holdings than this. */
+export const ENRICH_FORCE_DISABLE_TOKEN_COUNT = 100;
+/** Force-disable stream enrich when wallet has more dead holdings than this. */
+export const ENRICH_FORCE_DISABLE_DEAD_COUNT = 50;
 
 /** Parallel enrichment for RPC-only stubs (Vybe balance rows are hydrated at merge). */
 export const WALLET_BALANCE_ENRICH_CONCURRENCY = 20;
@@ -803,6 +807,35 @@ function resolveMetaEnrichLimit(raw: number | null | undefined, enrichEnabled: b
   return Math.min(n, TOP_LOGO_REPAIR_N_MAX);
 }
 
+/** Same “dead” rule as the holdings pie: no usable 1d and no usable 7d change %. */
+export function isDeadWalletHolding(item: WalletBalanceListItem): boolean {
+  const d1 = Number(item.priceChange1dPct);
+  const d7 = Number(item.priceChange7dPct);
+  const has1d = Number.isFinite(d1);
+  const has7d = Number.isFinite(d7);
+  return !has1d && !has7d;
+}
+
+export function countDeadWalletHoldings(items: WalletBalanceListItem[]): number {
+  return items.reduce((n, item) => n + (isDeadWalletHolding(item) ? 1 : 0), 0);
+}
+
+/** Large / mostly-dead wallets: skip Jupiter/pump.fun stream enrich entirely. */
+export function shouldForceDisableStreamEnrich(items: WalletBalanceListItem[]): boolean {
+  if (items.length > ENRICH_FORCE_DISABLE_TOKEN_COUNT) return true;
+  return countDeadWalletHoldings(items) > ENRICH_FORCE_DISABLE_DEAD_COUNT;
+}
+
+/**
+ * Enrich only rows that pass filters:
+ * not suspicious skipLogoEnrich, not dead, not enrich-blacklisted, still needs meta/logo.
+ */
+function isEligibleForStreamEnrich(item: WalletBalanceListItem): boolean {
+  if (item.skipLogoEnrich) return false;
+  if (isDeadWalletHolding(item)) return false;
+  return needsEnrichment(item);
+}
+
 async function enrichWalletBalanceList(
   http: AxiosInstance,
   items: WalletBalanceListItem[],
@@ -812,7 +845,7 @@ async function enrichWalletBalanceList(
   const sorted = sortWalletBalanceItems(items);
   if (enrichLimit <= 0) return sorted;
 
-  const eligible = sorted.filter((item) => !item.skipLogoEnrich && needsEnrichment(item));
+  const eligible = sorted.filter(isEligibleForStreamEnrich);
   const toEnrich = eligible.slice(0, enrichLimit);
   const enrichStart = Date.now();
   const stats: WalletBalanceEnrichStats = { vybeHydrated: 0, metaLookup: 0, vybeTokenGet: 0 };
@@ -846,37 +879,46 @@ export async function streamWalletTokenBalances(
   options?: { enrich?: boolean; enrichLimit?: number },
 ): Promise<void> {
   const enrich = options?.enrich !== false;
-  const enrichLimit = resolveMetaEnrichLimit(options?.enrichLimit, enrich);
+  let enrichLimit = resolveMetaEnrichLimit(options?.enrichLimit, enrich);
   const label = ownerAddress.trim().slice(0, 8);
   const { items } = await fetchWalletBalancesFromVybe(http, ownerAddress, limit);
   if (isCancelled?.()) return;
+
+  if (enrichLimit > 0 && shouldForceDisableStreamEnrich(items)) {
+    const dead = countDeadWalletHoldings(items);
+    console.info(
+      `[wallet-balance] ${label} force-disable enrich — tokens=${items.length} dead=${dead} (limits >${ENRICH_FORCE_DISABLE_TOKEN_COUNT} tokens or >${ENRICH_FORCE_DISABLE_DEAD_COUNT} dead)`,
+    );
+    enrichLimit = 0;
+  }
+
   emit({ event: 'initial', tokens: maskSuspiciousWalletBalanceList(items) });
   // Yield so the initial NDJSON frame can flush before slow enrich / logo download.
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   let working = items;
-  // After initial: download remote logos to disk and push updates (UI already unlocked).
-  const logoLimit = Math.max(enrichLimit, TOP_LOGO_REPAIR_N_MAX);
+  // After initial: download remote logos to disk (Jupiter/pump repair only when enrich is on).
+  const logoLimit = enrichLimit > 0 ? Math.max(enrichLimit, TOP_LOGO_REPAIR_N_MAX) : TOP_LOGO_REPAIR_N_MAX;
   if (logoLimit > 0) {
     const logoStart = Date.now();
     working = await materializeItemLogosLocal(working, {
       limit: logoLimit,
       concurrency: 8,
-      allowRepair: true,
+      allowRepair: enrichLimit > 0,
       onResolved: async (item) => {
         if (isCancelled?.()) return;
         emit({ event: 'update', token: maskSuspiciousWalletBalanceItem(item) });
       },
     });
     console.info(
-      `[wallet-balance] ${label} logo-materialize done in ${Date.now() - logoStart}ms (cap ${logoLimit})`,
+      `[wallet-balance] ${label} logo-materialize done in ${Date.now() - logoStart}ms (cap ${logoLimit}, repair=${enrichLimit > 0})`,
     );
   }
 
   if (enrichLimit > 0) {
     const metaEnrichMints = new Set(
       sortWalletBalanceItems(working)
-        .filter((item) => !item.skipLogoEnrich && needsEnrichment(item))
+        .filter(isEligibleForStreamEnrich)
         .slice(0, enrichLimit)
         .map((item) => item.mintAddress),
     );
@@ -899,10 +941,13 @@ export async function listWalletTokenBalances(
   options?: { enrich?: boolean; enrichLimit?: number },
 ): Promise<WalletBalanceListItem[]> {
   const enrich = options?.enrich === true;
-  const enrichLimit = resolveMetaEnrichLimit(options?.enrichLimit, enrich);
+  let enrichLimit = resolveMetaEnrichLimit(options?.enrichLimit, enrich);
   const label = ownerAddress.trim().slice(0, 8);
   const { items } = await fetchWalletBalancesFromVybe(http, ownerAddress, limit);
   let result = items.slice(0, limit);
+  if (enrichLimit > 0 && shouldForceDisableStreamEnrich(result)) {
+    enrichLimit = 0;
+  }
   if (!enrich) return maskSuspiciousWalletBalanceList(result);
 
   result = await materializeItemLogosLocal(result, {

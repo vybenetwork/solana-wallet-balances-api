@@ -83,6 +83,11 @@ const LOGO_SETTINGS_DEFAULTS = {
   topLogoRepairN: { min: 1, max: 20, fallback: 10 },
   logoImgTimeoutSec: { min: 3, max: 30, fallback: 10 },
 };
+/** Match server: force-off Stream Logo Enrich for huge / mostly-dead wallets. */
+const ENRICH_FORCE_DISABLE_TOKEN_COUNT = 100;
+const ENRICH_FORCE_DISABLE_DEAD_COUNT = 50;
+let streamEnrichForceDisabled = false;
+let streamEnrichUserPreferred = true;
 const logoLoadingMints = new Set();
 const logoRepairInFlight = new Set();
 const logoFailedMints = new Set();
@@ -212,7 +217,44 @@ function getLogoRepairTimeoutMs() {
 
 function syncTopLogoRepairFieldState() {
   if (!topLogoRepairNInput || !topLogoRepairEnabledInput) return;
-  topLogoRepairNInput.disabled = !topLogoRepairEnabledInput.checked;
+  topLogoRepairEnabledInput.disabled = streamEnrichForceDisabled;
+  topLogoRepairNInput.disabled = streamEnrichForceDisabled || !topLogoRepairEnabledInput.checked;
+  const label = document.getElementById('topLogoRepairSwitchLabel');
+  if (label) {
+    label.title = streamEnrichForceDisabled
+      ? `Forced off: wallet has >${ENRICH_FORCE_DISABLE_TOKEN_COUNT} tokens or >${ENRICH_FORCE_DISABLE_DEAD_COUNT} dead tokens`
+      : 'During the balance stream, enrich top N filter-eligible holdings missing USD/logo (skips dead & suspicious)';
+    label.classList.toggle('is-force-disabled', streamEnrichForceDisabled);
+  }
+}
+
+function countDeadHoldingsClient(tokens) {
+  return (Array.isArray(tokens) ? tokens : []).reduce((n, t) => {
+    const has1d = hasValidPriceChangePct(t?.priceChange1dPct);
+    const has7d = hasValidPriceChangePct(t?.priceChange7dPct);
+    return n + (!has1d && !has7d ? 1 : 0);
+  }, 0);
+}
+
+function shouldForceDisableStreamEnrichClient(tokens) {
+  const list = Array.isArray(tokens) ? tokens : [];
+  if (list.length > ENRICH_FORCE_DISABLE_TOKEN_COUNT) return true;
+  return countDeadHoldingsClient(list) > ENRICH_FORCE_DISABLE_DEAD_COUNT;
+}
+
+/** Force Stream Logo Enrich off for oversized / mostly-dead wallets (mirrors server). */
+function applyStreamEnrichForceDisable(tokens) {
+  const force = shouldForceDisableStreamEnrichClient(tokens);
+  if (force && !streamEnrichForceDisabled) {
+    streamEnrichUserPreferred = topLogoRepairEnabledInput?.checked !== false;
+  }
+  if (force) {
+    if (topLogoRepairEnabledInput) topLogoRepairEnabledInput.checked = false;
+  } else if (streamEnrichForceDisabled && topLogoRepairEnabledInput) {
+    topLogoRepairEnabledInput.checked = streamEnrichUserPreferred;
+  }
+  streamEnrichForceDisabled = force;
+  syncTopLogoRepairFieldState();
 }
 
 function clampLogoSettingInput(input, bounds) {
@@ -1915,6 +1957,7 @@ async function fetchBalances() {
           continue;
         }
         if (event.event === 'initial' && Array.isArray(event.tokens)) {
+          applyStreamEnrichForceDisable(event.tokens);
           applyTokens(event.tokens, { repairLogos: true });
           unlockUi();
         } else if (event.event === 'update' && event.token) {
@@ -1927,6 +1970,7 @@ async function fetchBalances() {
       try {
         const event = JSON.parse(buffer.trim());
         if (event.event === 'initial' && Array.isArray(event.tokens)) {
+          applyStreamEnrichForceDisable(event.tokens);
           applyTokens(event.tokens, { repairLogos: true });
           unlockUi();
         } else if (event.event === 'update' && event.token) {
