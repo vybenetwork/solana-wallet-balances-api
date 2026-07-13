@@ -1524,9 +1524,9 @@ function priceChange24hBuckets(tokens) {
 function buildPriceChangePieInsight(bucket, totalTokens) {
   if (totalTokens === 0) return 'No holdings loaded.';
   const labels = {
-    profitable: 'profitable · 1d ≥1% or 7d >1%',
-    breaking_even: 'breaking even · −0.50% to 1% on 1d or 7d',
-    losing: 'losing value · below −0.50% on 1d and 7d, or single metric below −0.50%',
+    profitable: 'profitable',
+    breaking_even: 'breaking even',
+    losing: 'losing value',
     dead: 'dead with no price change data',
   };
   let topKey = bucket.order[0];
