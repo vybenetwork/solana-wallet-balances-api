@@ -342,8 +342,8 @@ function formatAmount(n, symbol) {
 function displayTokenSymbol(symbol) {
   const sym = (symbol || '').trim();
   if (!sym) return '—';
-  if (sym.toUpperCase() === 'WSOL') return 'SOL';
-  return sym;
+  const base = sym.toUpperCase() === 'WSOL' ? 'SOL' : sym;
+  return base.length > 8 ? base.slice(0, 8) : base;
 }
 
 function isStableToken(mint, symbol) {
@@ -362,24 +362,22 @@ function isSolToken(mint, symbol) {
 function wrapHoldingAmountHtml(amountText, mint, symbol) {
   const raw = (amountText || '').trim();
   if (!raw || raw === '—') return '—';
+  const sym = displayTokenSymbol(symbol);
+  const label = sym && sym !== '—' ? `${raw} ${sym}` : raw;
   if (isStableToken(mint, symbol)) {
-    return `<span class="holders-amount-cell amount-usdc">${escapeHtmlText(raw)}</span>`;
+    return `<span class="holders-amount-cell amount-usdc">${escapeHtmlText(label)}</span>`;
   }
   if (isSolToken(mint, symbol)) {
-    return `<span class="holders-amount-cell amount-sol">${escapeHtmlText(raw)}</span>`;
+    return `<span class="holders-amount-cell amount-sol">${escapeHtmlText(label)}</span>`;
   }
-  const lastSpace = raw.lastIndexOf(' ');
-  if (lastSpace === -1) {
+  if (!sym || sym === '—') {
     return `<span class="holders-amount-cell amount-other-value">${escapeHtmlText(raw)}</span>`;
   }
-  const valuePart = raw.slice(0, lastSpace);
-  const symbolPart = raw.slice(lastSpace + 1);
-  return `<span class="holders-amount-cell"><span class="amount-other-value">${escapeHtmlText(valuePart)}</span> <span class="amount-other-symbol">${escapeHtmlText(symbolPart)}</span></span>`;
+  return `<span class="holders-amount-cell"><span class="amount-other-value">${escapeHtmlText(raw)}</span> <span class="amount-other-symbol">${escapeHtmlText(sym)}</span></span>`;
 }
 
 function formatHoldingAmountCellHtml(t) {
-  const sym = displayTokenSymbol(t.symbol);
-  return wrapHoldingAmountHtml(formatAmount(t.amountUi, sym), t.mintAddress, t.symbol);
+  return wrapHoldingAmountHtml(formatAmount(t.amountUi, ''), t.mintAddress, t.symbol);
 }
 
 function formatCompactNum(n) {
@@ -1750,7 +1748,7 @@ function renderTable(tokens, totalUsd) {
       return `<tr class="holders-row holders-row--${pieCat}">
         <td class="holders-rank-col"><div class="holders-rank-cell">${holdersRankBadgeHtml(pieCat)}<span class="holders-rank-num holders-rank-num--${pieCat}">${i + 1}</span></div></td>
         <td class="holders-change-col">${formatChangeColumnHtml(t)}</td>
-        <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(t.symbol)}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
+        <td><div class="token-header">${iconHtml}<div class="token-header-text"><div class="symbol">${escapeHtmlText(displayTokenSymbol(t.symbol))}${tokenSymbolBadgesHtml(t)}</div><div class="name">${escapeHtmlText(t.name)}</div></div></div></td>
         <td class="num holders-portfolio-col">${formatPortfolioPctColumnHtml(pct, v > 0)}</td>
         <td class="holders-value-usd num">${formatHoldingValueUsdCellHtml(v)}</td>
         <td class="num holders-amount-col">${formatHoldingAmountCellHtml(t)}</td>
