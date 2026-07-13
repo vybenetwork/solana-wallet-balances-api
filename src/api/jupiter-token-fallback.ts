@@ -1,15 +1,15 @@
 /**
  * Jupiter fallback for RPC-only wallet holdings when Vybe token-details is unavailable.
- * Asset metadata from datapi; price from swap quote (token → USDC only).
+ * Asset metadata from tokens/v2/search (lite-api); price from swap quote (token → USDC only).
  * If USDC quote fails, callers fall through to pump.fun then Vybe.
  */
 
-import { fetchWithHttpProxy } from './http-proxy-fetch.js';
+import { fetchWith429Retry } from './fetch-with-429-retry.js';
 import { NATIVE_SOL_MINT, WSOL_MINT } from './sol-mints.js';
 
-const JUPITER_DATAPI_BASE = 'https://datapi.jup.ag/v1';
+/** Jupiter token search (lite-api). */
+const JUPITER_TOKENS_SEARCH_URL = 'https://lite-api.jup.ag/tokens/v2/search';
 const JUPITER_SWAP_QUOTE_URL = 'https://api.jup.ag/swap/v1/quote';
-const PUMPFUN_API_BASE = 'https://frontend-api-v3.pump.fun';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const USDC_DECIMALS = 6;
 
@@ -34,25 +34,6 @@ export type JupiterQuotePrice = { priceUsd: number };
 function jupiterApiMint(mint: string): string {
   const m = mint.trim();
   return m === NATIVE_SOL_MINT ? WSOL_MINT : m;
-}
-
-/** URLs used to warm Jupiter + pump.fun connections at startup. */
-export function getJupiterWarmupUrls(): {
-  datapi: string;
-  quote: string;
-  pumpfunProbe: string;
-} {
-  const wsol = jupiterApiMint(NATIVE_SOL_MINT);
-  const quoteUrl = new URL(JUPITER_SWAP_QUOTE_URL);
-  quoteUrl.searchParams.set('inputMint', wsol);
-  quoteUrl.searchParams.set('outputMint', USDC_MINT);
-  quoteUrl.searchParams.set('amount', '1000000000');
-  quoteUrl.searchParams.set('slippageBps', '50');
-  return {
-    datapi: `${JUPITER_DATAPI_BASE}/assets/search?query=${encodeURIComponent(wsol)}`,
-    quote: quoteUrl.toString(),
-    pumpfunProbe: `${PUMPFUN_API_BASE}/coins/${encodeURIComponent(wsol)}`,
-  };
 }
 
 function parsePositiveInt(value: unknown): number | null {
@@ -84,7 +65,7 @@ async function fetchJupiterSwapQuote(
   url.searchParams.set('amount', inAmountRaw.toString());
   url.searchParams.set('slippageBps', '50');
 
-  const res = await fetchWithHttpProxy(url, { signal: AbortSignal.timeout(15_000) });
+  const res = await fetchWith429Retry(url, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) return null;
   const data = (await res.json()) as { outAmount?: string; inAmount?: string; error?: string };
   if (data.error) return null;
@@ -94,13 +75,13 @@ async function fetchJupiterSwapQuote(
   return { inAmount, outAmount };
 }
 
-/** Token metadata (decimals, icon, symbol) from Jupiter datapi search. */
+/** Token metadata (decimals, icon, symbol) from Jupiter tokens/v2/search. */
 export async function fetchJupiterAsset(mint: string): Promise<JupiterAssetInfo | null> {
   const apiMint = jupiterApiMint(mint);
-  const url = `${JUPITER_DATAPI_BASE}/assets/search?query=${encodeURIComponent(apiMint)}`;
-  const res = await fetchWithHttpProxy(url, { signal: AbortSignal.timeout(15_000) });
+  const url = `${JUPITER_TOKENS_SEARCH_URL}?query=${encodeURIComponent(apiMint)}`;
+  const res = await fetchWith429Retry(url, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) {
-    throw new Error(`Jupiter datapi HTTP ${res.status}`);
+    throw new Error(`Jupiter tokens search HTTP ${res.status}`);
   }
   const rows = (await res.json()) as unknown;
   if (!Array.isArray(rows)) return null;
@@ -131,7 +112,7 @@ export async function fetchJupiterAsset(mint: string): Promise<JupiterAssetInfo 
   };
 }
 
-/** Full token details from Jupiter datapi + USDC swap quote. */
+/** Full token details from Jupiter asset search + USDC swap quote. */
 export async function fetchJupiterTokenDetails(
   mint: string,
   options: { decimalsHint?: number } = {},

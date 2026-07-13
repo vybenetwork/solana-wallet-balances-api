@@ -8,12 +8,10 @@ import {
   getPumpfunAuthToken,
   getPumpfunHeadersPath,
 } from '../config.js';
-import { fetchWithHttpProxy } from './http-proxy-fetch.js';
+import { fetchWith429Retry } from './fetch-with-429-retry.js';
 
 const PUMPFUN_API_BASE = 'https://frontend-api-v3.pump.fun';
 const REQUEST_TIMEOUT_MS = 15_000;
-const MAX_RETRIES = 2;
-const RETRY_BACKOFF_MS = 1_000;
 
 const DEFAULT_HEADERS: Record<string, string> = {
   'User-Agent':
@@ -55,10 +53,6 @@ function parsePositiveBigInt(value: unknown): bigint | null {
   } catch {
     return null;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Turn a raw HTTP response into a PumpfunCoinRecord (mirrors pumpfun-scraper classify). */
@@ -149,48 +143,28 @@ export function decimalsFromPumpfunData(
   return parsePositiveInt(data.base_decimals) ?? decimalsHint ?? null;
 }
 
-/** Fetch a single mint from pump.fun (retries on network/429). */
+/** Fetch a single mint from pump.fun (one 429 retry after 3s, then give up). */
 export async function fetchPumpfunCoin(mint: string): Promise<PumpfunCoinRecord> {
   const url = `${PUMPFUN_API_BASE}/coins/${encodeURIComponent(mint.trim())}`;
   const headers = loadPumpfunHeaders();
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetchWithHttpProxy(url, {
-        headers,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      const body = await res.text();
-
-      if (res.status === 429 && attempt < MAX_RETRIES) {
-        await sleep(RETRY_BACKOFF_MS * (attempt + 1));
-        continue;
-      }
-
-      return classifyPumpfunResponse(mint, res.status, body);
-    } catch (err) {
-      if (attempt < MAX_RETRIES) {
-        await sleep(RETRY_BACKOFF_MS * (attempt + 1));
-        continue;
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      return {
-        mint,
-        status: 'error',
-        httpStatus: 0,
-        data: null,
-        error: msg,
-      };
-    }
+  try {
+    const res = await fetchWith429Retry(url, {
+      headers,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const body = await res.text();
+    return classifyPumpfunResponse(mint, res.status, body);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      mint,
+      status: 'error',
+      httpStatus: 0,
+      data: null,
+      error: msg,
+    };
   }
-
-  return {
-    mint,
-    status: 'error',
-    httpStatus: 0,
-    data: null,
-    error: 'exhausted retries',
-  };
 }
 
 const PUMPFUN_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';

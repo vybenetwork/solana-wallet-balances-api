@@ -155,34 +155,3 @@ export async function materializeItemLogosLocal<T extends LogoMaterializeItem>(
     return { ...item, logoUrl: isLocalCachedIconUrl(logo) ? logo : null };
   });
 }
-
-/** Stream-friendly helper for POST /api/tokens/materialize-logos. */
-export async function materializeLogoHintsSequential(
-  hints: Array<{ mint: string; logoUrl?: string | null }>,
-  onResolved?: (token: { mint: string; logoUrl: string }) => void | Promise<void>,
-  options?: { allowRepair?: boolean; concurrency?: number; limit?: number },
-): Promise<Array<{ mint: string; logoUrl: string }>> {
-  const allowRepair = options?.allowRepair !== false;
-  const concurrency = Math.max(1, options?.concurrency ?? 8);
-  const limit = Math.max(0, options?.limit ?? 40);
-  const seen = new Set<string>();
-  const queue: Array<{ mint: string; logoUrl: string | null }> = [];
-  for (const raw of hints) {
-    const mint = String(raw?.mint ?? '').trim();
-    if (!mint || seen.has(mint)) continue;
-    seen.add(mint);
-    queue.push({ mint, logoUrl: raw?.logoUrl?.trim() || null });
-    if (queue.length >= limit) break;
-  }
-
-  const out: Array<{ mint: string; logoUrl: string }> = [];
-  await mapPool(queue, concurrency, async (item) => {
-    const local = await materializeTokenLogoLocal(item.mint, item.logoUrl, { allowRepair });
-    if (!local) return null;
-    const token = { mint: item.mint, logoUrl: local };
-    out.push(token);
-    await onResolved?.(token);
-    return token;
-  });
-  return out;
-}

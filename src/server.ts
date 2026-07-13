@@ -21,11 +21,8 @@ import {
   WALLET_TOKEN_BALANCE_LIMIT,
 } from './api/wallet-balance.js';
 import { resolveTokenMeta } from './api/resolve-token-meta.js';
-import { repairTokenIcon } from './api/repair-token-icon.js';
 import { getTopTraders, getWalletPnl } from './api/wallet-pnl.js';
 import { cachedMetaToApiResponse } from './api/token-meta-api.js';
-import { materializeLogoHintsSequential } from './api/materialize-token-logo.js';
-import { warmupHttpProxyPool } from './api/http-proxy-fetch.js';
 import { getRuntimeIconDir } from './token-icon-cache.js';
 
 loadEnv();
@@ -142,78 +139,6 @@ app.get('/api/wallets/:ownerAddress/token-balances', async (req: Request, res: R
   }
 });
 
-/** GET /api/token/:mint/logo — Jupiter (non-pump) or pump.fun metadata; caches locally. */
-app.get('/api/token/:mint/logo', async (req: Request, res: Response) => {
-  try {
-    const rawMint = req.params.mint;
-    const mint = (Array.isArray(rawMint) ? rawMint[0] : rawMint ?? '').trim();
-    if (!mint) return res.status(400).json({ error: 'Mint address required' });
-
-    const force = qBool(req, 'force', false);
-    const logoUrl = await repairTokenIcon(mint, { force });
-    // 200 with null — missing logos are common; avoid browser 404 console noise.
-    res.json({ logoUrl: logoUrl ?? null });
-  } catch (err) {
-    const status = (err as { response?: { status?: number } })?.response?.status ?? 500;
-    res.status(status).json({ error: toHumanReadableError(err) });
-  }
-});
-
-/**
- * POST /api/tokens/materialize-logos
- * Body: { items: [{ mint, logoUrl? }] } — download remotes (or repair) to /cached/token-icons.
- */
-app.post('/api/tokens/materialize-logos', async (req: Request, res: Response) => {
-  try {
-    const items = Array.isArray(req.body?.items)
-      ? req.body.items
-      : Array.isArray(req.body?.mints)
-        ? (req.body.mints as unknown[]).map((mint) => ({ mint, logoUrl: null }))
-        : [];
-    if (items.length === 0) {
-      return res.status(400).json({ error: 'items array required (max 40)' });
-    }
-    const useStream = qBool(req, 'stream', true);
-    const allowRepair = qBool(req, 'repair', true);
-
-    if (useStream) {
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('X-Accel-Buffering', 'no');
-      await materializeLogoHintsSequential(
-        items,
-        async (token) => {
-          if (!res.writableEnded) {
-            res.write(`${JSON.stringify({ event: 'token', token })}\n`);
-            const flushable = res as unknown as { flush?: () => void };
-            flushable.flush?.();
-          }
-        },
-        { allowRepair, concurrency: 8, limit: 40 },
-      );
-      if (!res.writableEnded) {
-        res.write(`${JSON.stringify({ event: 'done' })}\n`);
-        res.end();
-      }
-      return;
-    }
-
-    const tokens = await materializeLogoHintsSequential(items, undefined, {
-      allowRepair,
-      concurrency: 8,
-      limit: 40,
-    });
-    res.json({ tokens });
-  } catch (err) {
-    if (!res.headersSent) {
-      const status = (err as { response?: { status?: number } })?.response?.status ?? 500;
-      res.status(status).json({ error: toHumanReadableError(err) });
-    } else {
-      res.end();
-    }
-  }
-});
-
 /** GET /api/token/:mint — resolve metadata and USD price (Jupiter → pump.fun → Vybe). */
 app.get('/api/token/:mint', async (req: Request, res: Response) => {
   try {
@@ -302,7 +227,6 @@ app.use(
 );
 
 async function main(): Promise<void> {
-  await warmupHttpProxyPool();
   app.listen(port, () => {
     console.log(
       `[wallet-balances-api] listening on http://localhost:${port} (Vybe data: ${VYBE_DATA_API_BASE}, RPC: ${getSolanaRpcProviderLabel()})`,
