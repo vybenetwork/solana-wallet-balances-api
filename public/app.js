@@ -720,12 +720,17 @@ function formatOverviewCountSuffixHtml(count, suffix) {
 }
 
 function isLocalCachedLogoUrl(url) {
+  if (Array.isArray(url)) return false;
   const u = String(url || '').trim();
+  if (!u || u.includes(',')) return false;
   return u.startsWith('/cached/token-icons/') || u.startsWith('/data/token-icons/');
 }
 
 function iconUrl(item) {
-  const u = item.logoUrl?.trim();
+  const raw = item?.logoUrl;
+  const u = Array.isArray(raw)
+    ? window.VybeMintMetaCache?.normalizeLogoUrl?.(raw) || ''
+    : String(raw || '').trim();
   if (!u) return '';
   // Only render logos served by this app — never remote CDNs (shdw-drive, etc.).
   return isLocalCachedLogoUrl(u) ? u : '';
