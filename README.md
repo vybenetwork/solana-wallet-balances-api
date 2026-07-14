@@ -1,4 +1,4 @@
-# Solana Wallet Balances API
+# Solana Balances API
 
 <p align="center">
 
@@ -10,13 +10,13 @@
 [![X](https://img.shields.io/badge/X-Vybe__Network-000000?style=for-the-badge&logo=x)](https://x.com/Vybe_Network)
 </p>
 
-**Solana Wallet Balances API:** Solana wallet balances API: fetch SPL & Token-2022 holdings with on-chain RPC amounts, Vybe metadata, and live USD portfolio values for any Solana wallet. Use this project as a reference implementation or starter kit for portfolio UIs, wallet dashboards, and balance enrichment pipelines.
+**Solana Balances API:** Fetch SPL & Token-2022 holdings with on-chain RPC amounts, Vybe metadata, and live USD portfolio values for any Solana wallet. Use this project as a reference implementation or starter kit for portfolio UIs, wallet dashboards, and balance enrichment pipelines.
 
 It includes a production-ready Node.js backend and a modern frontend that integrate Vybe’s wallet token-balance, token details, wallet PnL, and top-traders endpoints—explore holdings tables, USD allocation charts, streaming enrichment, and related wallet PnL context.
 
 Try the live demo: https://solana-balances-api.vybenetwork.com
 
-![Solana Wallet Balances API app](screenshots/solana-wallet-balances-api-app-demo.jpg)
+![Solana Balances API app](screenshots/solana-wallet-balances-api-app-demo.jpg)
 
 ---
 
